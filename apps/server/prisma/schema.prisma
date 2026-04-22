@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Transaction {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  description String
+  amount      Decimal  @db.Decimal(14, 2)
+  type        String
+  category    String
+  paymentType String?  @map("payment_type")
+  date        DateTime @db.Date
+  tags        String[]
+  goalId      String?  @map("goal_id") @db.Uuid
+  goal        Goal?    @relation(fields: [goalId], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([userId, date], map: "idx_transactions_user_date")
+  @@index([userId, type, date], map: "idx_transactions_user_type_date")
+  @@map("transactions")
+}
+
+model Investment {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  name      String
+  type      String // stock, fixed_income, crypto, etc
+  amount    Decimal  @db.Decimal(14, 2) // Valor investido no aporte
+  quantity  Decimal? @db.Decimal(14, 8) // Quantidade de cotas/moedas
+  date      DateTime @db.Date // Data do aporte
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([userId, date], map: "idx_investments_user_date")
+  @@map("investments")
+}
+
+model Goal {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  name          String
+  targetAmount  Decimal  @map("target_amount") @db.Decimal(14, 2)
+  currentAmount Decimal  @default(0) @map("current_amount") @db.Decimal(14, 2)
+  monthlyDeposit Decimal @default(0) @map("monthly_deposit") @db.Decimal(14, 2)
+  deadline      DateTime @db.Date
+  category      String   @default("other")
+  transactions  Transaction[]
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@index([userId, deadline], map: "idx_goals_user_deadline")
+  @@map("goals")
+}
