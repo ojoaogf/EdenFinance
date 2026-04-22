@@ -109,9 +109,6 @@ export default function Login() {
                   <Label htmlFor="password" className="terminal-label">
                     Senha
                   </Label>
-                  <span className="terminal-label text-primary/80">
-                    Esqueceu sua senha?
-                  </span>
                 </div>
                 <Input
                   id="password"
