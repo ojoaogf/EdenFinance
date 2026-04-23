@@ -1,4 +1,5 @@
 import { Transaction } from "@/types/finance";
+import { formatDateOnlyPtBR } from "@/utils/date";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 
@@ -79,7 +80,7 @@ export const generateExcelReport = async (
     data.forEach((t) => {
       const row = worksheet.getRow(currentRow);
       const values = [
-        new Date(t.date).toLocaleDateString("pt-BR"),
+        formatDateOnlyPtBR(t.date),
         t.description,
         t.category || "Sem Categoria",
         Number(t.amount),

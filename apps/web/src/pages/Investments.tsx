@@ -26,6 +26,7 @@ import {
   useInvestments,
   useInvestmentSummary,
 } from "@/hooks/use-investments";
+import { formatDateOnlyPtBR } from "@/utils/date";
 import { BarChart3, Plus, Trash2, TrendingUp, Wallet } from "lucide-react";
 import { useState } from "react";
 import {
@@ -409,7 +410,7 @@ const Investments = () => {
                       </span>
                       <span>•</span>
                       <span>
-                        {new Date(investment.date).toLocaleDateString("pt-BR")}
+                        {formatDateOnlyPtBR(investment.date)}
                       </span>
                     </div>
                   </div>

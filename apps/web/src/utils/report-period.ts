@@ -1,4 +1,5 @@
 import type { MonthlyReport, Transaction, TransactionType } from "@/types/finance";
+import { toLocalDateFromDateOnly } from "@/utils/date";
 
 export type ReportViewMode = "year" | "month";
 export type ReportTypeFilter = "all" | TransactionType;
@@ -30,7 +31,7 @@ export const filterTransactionsByPeriod = (
   const selectedMonth = period.month.padStart(2, "0");
 
   return transactions.filter((transaction) => {
-    const date = new Date(transaction.date);
+    const date = toLocalDateFromDateOnly(transaction.date);
     const txYear = String(date.getFullYear());
     const txMonth = String(date.getMonth() + 1).padStart(2, "0");
 
@@ -40,4 +41,3 @@ export const filterTransactionsByPeriod = (
     return true;
   });
 };
-

@@ -5,6 +5,7 @@ import {
 } from "@/constants/transaction-category-ui";
 import { cn } from "@/lib/utils";
 import { Transaction } from "@/types/finance";
+import { formatDateOnlyPtBR } from "@/utils/date";
 import { ArrowUpRight } from "lucide-react";
 
 interface RecentTransactionsProps {
@@ -63,7 +64,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                       {transaction.description}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(transaction.date).toLocaleDateString("pt-BR", {
+                      {formatDateOnlyPtBR(transaction.date, {
                         day: "2-digit",
                         month: "short",
                       })}{" "}
@@ -84,12 +85,6 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     {Number(transaction.amount).toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
-                    })}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(transaction.date).toLocaleTimeString("pt-BR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
                     })}
                   </p>
                 </div>

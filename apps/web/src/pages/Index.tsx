@@ -17,6 +17,7 @@ import {
   filterMonthlyReportsByPeriod,
   filterTransactionsByPeriod,
 } from "@/utils/report-period";
+import { toLocalDateFromDateOnly } from "@/utils/date";
 import { CalendarDays, PiggyBank } from "lucide-react";
 import { useMemo } from "react";
 
@@ -63,7 +64,11 @@ const Index = () => {
     month: currentMonth,
   })
     .slice()
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort(
+      (a, b) =>
+        toLocalDateFromDateOnly(b.date).getTime() -
+        toLocalDateFromDateOnly(a.date).getTime(),
+    )
     .slice(0, 8);
 
   return (
