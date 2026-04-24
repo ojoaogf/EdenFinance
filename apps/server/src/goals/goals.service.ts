@@ -1,34 +1,59 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { Goal } from '@prisma/client';
+import {
+  formatDateOnlyFromDbDate,
+  parseDateOnlyToUtcNoon,
+} from '../common/date-only';
 import { PrismaService } from '../prisma/prisma.service';
 import type { CreateGoalDto } from './dto/create-goal.dto';
 import type { UpdateGoalDto } from './dto/update-goal.dto';
+
+type GoalWithDateString = Omit<Goal, 'deadline'> & { deadline: string };
 
 @Injectable()
 export class GoalsService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, createGoalDto: CreateGoalDto): Promise<Goal> {
-    return await this.prisma.goal.create({
+  private serializeGoalDate<T extends { deadline: Date }>(goal: T) {
+    return {
+      ...goal,
+      deadline: formatDateOnlyFromDbDate(goal.deadline),
+    };
+  }
+
+  async create(
+    userId: string,
+    createGoalDto: CreateGoalDto,
+  ): Promise<GoalWithDateString> {
+    const created = await this.prisma.goal.create({
       data: {
         ...createGoalDto,
-        deadline: new Date(createGoalDto.deadline),
+        deadline: parseDateOnlyToUtcNoon(createGoalDto.deadline),
         userId,
       },
     });
+
+    return this.serializeGoalDate(created);
   }
 
-  async findAll(userId: string): Promise<Goal[]> {
-    return await this.prisma.goal.findMany({
+  async findAll(userId: string): Promise<GoalWithDateString[]> {
+    const goals = await this.prisma.goal.findMany({
       where: { userId },
       orderBy: { deadline: 'asc' },
     });
+
+    return goals.map((goal) => this.serializeGoalDate(goal));
   }
 
-  async findOne(id: string, userId: string): Promise<Goal | null> {
-    return await this.prisma.goal.findFirst({
+  async findOne(
+    id: string,
+    userId: string,
+  ): Promise<GoalWithDateString | null> {
+    const goal = await this.prisma.goal.findFirst({
       where: { id, userId },
     });
+
+    return goal ? this.serializeGoalDate(goal) : null;
   }
 
   async update(id: string, userId: string, updateGoalDto: UpdateGoalDto) {
@@ -38,13 +63,15 @@ export class GoalsService {
 
     const { deadline, ...rest } = updateGoalDto;
 
-    return await this.prisma.goal.update({
+    const updated = await this.prisma.goal.update({
       where: { id },
       data: {
         ...rest,
-        ...(deadline && { deadline: new Date(deadline) }),
+        ...(deadline && { deadline: parseDateOnlyToUtcNoon(deadline) }),
       },
     });
+
+    return this.serializeGoalDate(updated);
   }
 
   async remove(id: string, userId: string) {
@@ -62,27 +89,23 @@ export class GoalsService {
       throw new BadRequestException('Valor de aporte deve ser maior que zero');
     }
 
-    // 1. Verificar se a meta existe e pertence ao usuário
     const goal = await this.prisma.goal.findFirstOrThrow({
       where: { id, userId },
     });
 
-    // 2. Realizar transação atômica (criar Transaction + atualizar Goal)
     return await this.prisma.$transaction(async (tx) => {
-      // Criar a transação de "saída" (investimento na meta)
       await tx.transaction.create({
         data: {
           userId,
           description: `Aporte: ${goal.name}`,
           amount: amount,
-          type: 'expense', // Saída do caixa principal
+          type: 'expense',
           category: 'Investimentos',
           date: new Date(),
           goalId: id,
         },
       });
 
-      // Atualizar o saldo da meta
       const updatedGoal = await tx.goal.update({
         where: { id },
         data: {

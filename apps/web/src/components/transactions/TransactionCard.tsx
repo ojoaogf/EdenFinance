@@ -16,9 +16,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { normalizePaymentType } from "@/constants/payment-types";
 import { Transaction } from "@/types/finance";
 
 import { cn } from "@/lib/utils";
+import { formatDateOnlyPtBR } from "@/utils/date";
 import {
   ChevronDown,
   CreditCard,
@@ -51,14 +53,23 @@ export function TransactionCard({
 
   // Mock Payment Method inference
   const getPaymentMethod = () => {
+    const normalizedPaymentType = normalizePaymentType(transaction.paymentType);
+    if (normalizedPaymentType) {
+      if (normalizedPaymentType === "Crédito") {
+        return { label: "Crédito", icon: CreditCard };
+      }
+
+      return { label: "Pix/Débito", icon: QrCode };
+    }
+
     if (transaction.paymentType) {
       const type = transaction.paymentType.toLowerCase();
       if (type.includes("pix"))
-        return { label: transaction.paymentType, icon: QrCode };
+        return { label: "Pix/Débito", icon: QrCode };
       if (type.includes("crédito"))
-        return { label: transaction.paymentType, icon: CreditCard };
+        return { label: "Crédito", icon: CreditCard };
       if (type.includes("débito"))
-        return { label: transaction.paymentType, icon: CreditCard };
+        return { label: "Pix/Débito", icon: QrCode };
       return { label: transaction.paymentType, icon: Wallet };
     }
 
@@ -237,7 +248,7 @@ export function TransactionCard({
                       hour: "2-digit",
                       minute: "2-digit",
                     })
-                  : new Date(transaction.date).toLocaleDateString("pt-BR", {
+                  : formatDateOnlyPtBR(transaction.date, {
                       weekday: "long",
                       year: "numeric",
                       month: "long",

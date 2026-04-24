@@ -7,7 +7,6 @@ export interface Category {
 export const CATEGORIES: Category[] = [
   // Receitas
   { id: "income-1", name: "Salário", type: "income" },
-  { id: "income-2", name: "VEE", type: "income" },
   { id: "income-3", name: "Freelance", type: "income" },
   { id: "income-4", name: "Outros", type: "income" },
 

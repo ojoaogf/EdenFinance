@@ -26,7 +26,8 @@ import {
   useInvestments,
   useInvestmentSummary,
 } from "@/hooks/use-investments";
-import { formatDateOnlyPtBR } from "@/utils/date";
+import { formatDateOnlyPtBR, toDateOnlyString } from "@/utils/date";
+import { formatCurrencyInput, parseCurrencyToNumber } from "@/utils/money";
 import { BarChart3, Plus, Trash2, TrendingUp, Wallet } from "lucide-react";
 import { useState } from "react";
 import {
@@ -70,7 +71,7 @@ const Investments = () => {
     type: "",
     amount: "",
     quantity: "",
-    date: new Date().toISOString().split("T")[0],
+    date: toDateOnlyString(new Date()),
   });
 
   // Totais baseados no Resumo
@@ -110,14 +111,25 @@ const Investments = () => {
       return;
     }
 
+    const parsedAmount = parseCurrencyToNumber(newInvestment.amount);
+    const parsedQuantity = Number(newInvestment.quantity.replace(",", "."));
+
+    if (!Number.isFinite(parsedAmount)) {
+      toast.error("Valor do aporte inválido");
+      return;
+    }
+
+    if (!Number.isFinite(parsedQuantity)) {
+      toast.error("Quantidade inválida");
+      return;
+    }
+
     createInvestment.mutate(
       {
         name: newInvestment.name,
         type: newInvestment.type,
-        amount: parseFloat(
-          newInvestment.amount.replace(/\./g, "").replace(",", "."),
-        ),
-        quantity: parseFloat(newInvestment.quantity.replace(",", ".")),
+        amount: parsedAmount,
+        quantity: parsedQuantity,
         date: newInvestment.date,
       },
       {
@@ -128,7 +140,7 @@ const Investments = () => {
             type: "",
             amount: "",
             quantity: "",
-            date: new Date().toISOString().split("T")[0],
+            date: toDateOnlyString(new Date()),
           });
           toast.success("Aporte registrado com sucesso!");
         },
@@ -160,7 +172,7 @@ const Investments = () => {
             <p className="terminal-label">Total Investido</p>
             <Wallet className="h-4 w-4 text-primary" />
           </div>
-            <p className="terminal-title text-2xl text-primary">
+          <p className="terminal-title text-2xl text-primary">
             R${" "}
             {totalInvested.toLocaleString("pt-BR", {
               minimumFractionDigits: 2,
@@ -207,18 +219,12 @@ const Investments = () => {
                       type="text"
                       inputMode="numeric"
                       value={newInvestment.amount}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "");
-                        const numericValue = Number(value) / 100;
-                        const formatted = numericValue.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        });
+                      onChange={(e) =>
                         setNewInvestment({
                           ...newInvestment,
-                          amount: formatted,
-                        });
-                      }}
+                          amount: formatCurrencyInput(e.target.value),
+                        })
+                      }
                       className="h-14 pl-10 text-center text-2xl font-bold shadow-sm"
                       placeholder="0,00"
                       autoFocus
@@ -295,7 +301,7 @@ const Investments = () => {
                     onSelect={(date) =>
                       setNewInvestment({
                         ...newInvestment,
-                        date: date ? date.toISOString().split("T")[0] : "",
+                        date: date ? toDateOnlyString(date) : "",
                       })
                     }
                   />
@@ -409,9 +415,7 @@ const Investments = () => {
                         {typeLabels[investment.type] || investment.type}
                       </span>
                       <span>•</span>
-                      <span>
-                        {formatDateOnlyPtBR(investment.date)}
-                      </span>
+                      <span>{formatDateOnlyPtBR(investment.date)}</span>
                     </div>
                   </div>
                 </div>

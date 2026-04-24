@@ -48,6 +48,28 @@ export function KPICardsSection({
       : undefined;
   }, [sortedMonthlyReports, viewMode, selectedMonthKey]);
 
+  const trendReports = useMemo(() => {
+    if (!sortedMonthlyReports.length) return [];
+
+    if (viewMode === "month") {
+      const selectedIndex = sortedMonthlyReports.findIndex(
+        (r) => r.month === selectedMonthKey,
+      );
+
+      if (selectedIndex === -1) return filteredMonthlyReports;
+
+      const startIndex = Math.max(0, selectedIndex - 5);
+      return sortedMonthlyReports.slice(startIndex, selectedIndex + 1);
+    }
+
+    return filteredMonthlyReports;
+  }, [
+    sortedMonthlyReports,
+    viewMode,
+    selectedMonthKey,
+    filteredMonthlyReports,
+  ]);
+
   const calculateChange = (currentValue: number, previousValue: number) => {
     if (!previousValue) return 0;
     return Number(
@@ -111,7 +133,7 @@ export function KPICardsSection({
         meta={`Média mensal: R$ ${(
           totalIncome / (filteredMonthlyReports.length || 1)
         ).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`}
-        trendData={filteredMonthlyReports.map((r) => Number(r.income))}
+        trendData={trendReports.map((r) => Number(r.income))}
       />
       <KPICard
         title="Despesas Totais"
@@ -123,7 +145,7 @@ export function KPICardsSection({
         meta={`Média mensal: R$ ${(
           totalExpenses / (filteredMonthlyReports.length || 1)
         ).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`}
-        trendData={filteredMonthlyReports.map((r) => Number(r.expenses))}
+        trendData={trendReports.map((r) => Number(r.expenses))}
       />
       <KPICard
         title="Economia Líquida"
@@ -135,7 +157,7 @@ export function KPICardsSection({
         meta={`Média mensal: R$ ${avgMonthlySavings.toLocaleString("pt-BR", {
           maximumFractionDigits: 0,
         })} • ${savingsRate.toFixed(1)}%`}
-        trendData={filteredMonthlyReports.map((r) => Number(r.balance))}
+        trendData={trendReports.map((r) => Number(r.balance))}
       />
     </div>
   );

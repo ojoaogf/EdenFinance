@@ -2,10 +2,12 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
+import { PAYMENT_TYPES } from '../payment-types';
 
 export class CreateTransactionDto {
   // userId removido pois será obtido via token JWT
@@ -13,7 +15,7 @@ export class CreateTransactionDto {
   @IsString()
   description: string;
 
-  @IsNumber()
+  @IsNumber({ maxDecimalPlaces: 2 })
   amount: number;
 
   @IsEnum(['income', 'expense'])
@@ -23,7 +25,7 @@ export class CreateTransactionDto {
   category: string;
 
   @IsOptional()
-  @IsString()
+  @IsIn(PAYMENT_TYPES)
   paymentType?: string;
 
   @IsDateString()

@@ -1,22 +1,39 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  formatDateOnlyFromDbDate,
+  parseDateOnlyToUtcNoon,
+} from '../common/date-only';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { normalizePaymentType } from './payment-types';
 
 @Injectable()
 export class TransactionsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private serializeTransactionDate<T extends { date: Date }>(transaction: T) {
+    return {
+      ...transaction,
+      date: formatDateOnlyFromDbDate(transaction.date),
+    };
+  }
+
   async create(userId: string, createTransactionDto: CreateTransactionDto) {
     const { ...data } = createTransactionDto;
 
-    return await this.prisma.transaction.create({
+    const created = await this.prisma.transaction.create({
       data: {
         ...data,
+        amount: Number(Number(data.amount).toFixed(2)),
+        paymentType: normalizePaymentType(data.paymentType),
         userId, // Conecta ao usuário autenticado
-        date: new Date(data.date), // Converte string para Date
+        // Date-only fields must not be created at 00:00Z to avoid timezone day shift.
+        date: parseDateOnlyToUtcNoon(data.date),
       },
     });
+
+    return this.serializeTransactionDate(created);
   }
 
   async findAll(userId: string, year?: number, month?: number, type?: string) {
@@ -36,16 +53,22 @@ export class TransactionsService {
       };
     }
 
-    return await this.prisma.transaction.findMany({
+    const transactions = await this.prisma.transaction.findMany({
       where, // Filtra apenas transações do usuário
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     });
+
+    return transactions.map((transaction) =>
+      this.serializeTransactionDate(transaction),
+    );
   }
 
   async findOne(userId: string, id: string) {
-    return await this.prisma.transaction.findFirst({
+    const transaction = await this.prisma.transaction.findFirst({
       where: { id, userId }, // Garante que pertence ao usuário
     });
+
+    return transaction ? this.serializeTransactionDate(transaction) : null;
   }
 
   async update(
@@ -60,13 +83,23 @@ export class TransactionsService {
 
     const { ...data } = updateTransactionDto;
 
-    return await this.prisma.transaction.update({
+    const updated = await this.prisma.transaction.update({
       where: { id },
       data: {
         ...data,
-        date: data.date ? new Date(data.date) : undefined,
+        amount:
+          typeof data.amount === 'number'
+            ? Number(Number(data.amount).toFixed(2))
+            : undefined,
+        paymentType:
+          data.paymentType === undefined
+            ? undefined
+            : normalizePaymentType(data.paymentType),
+        date: data.date ? parseDateOnlyToUtcNoon(data.date) : undefined,
       },
     });
+
+    return this.serializeTransactionDate(updated);
   }
 
   async remove(userId: string, id: string) {

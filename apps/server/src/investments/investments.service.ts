@@ -1,4 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import {
+  formatDateOnlyFromDbDate,
+  parseDateOnlyToUtcNoon,
+} from '../common/date-only';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvestmentDto } from './dto/create-investment.dto';
 
@@ -6,24 +10,37 @@ import { CreateInvestmentDto } from './dto/create-investment.dto';
 export class InvestmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private serializeInvestmentDate<T extends { date: Date }>(investment: T) {
+    return {
+      ...investment,
+      date: formatDateOnlyFromDbDate(investment.date),
+    };
+  }
+
   async create(userId: string, dto: CreateInvestmentDto) {
-    return this.prisma.investment.create({
+    const created = await this.prisma.investment.create({
       data: {
         userId,
         name: dto.name,
         type: dto.type,
         amount: dto.amount,
         quantity: dto.quantity,
-        date: new Date(dto.date),
+        date: parseDateOnlyToUtcNoon(dto.date),
       },
     });
+
+    return this.serializeInvestmentDate(created);
   }
 
   async findAll(userId: string) {
-    return this.prisma.investment.findMany({
+    const investments = await this.prisma.investment.findMany({
       where: { userId },
       orderBy: { date: 'desc' },
     });
+
+    return investments.map((investment) =>
+      this.serializeInvestmentDate(investment),
+    );
   }
 
   async getSummary(userId: string) {

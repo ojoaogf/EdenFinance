@@ -31,6 +31,12 @@ import {
   useUpdateGoal,
 } from "@/hooks/use-goals";
 import type { FinancialGoal } from "@/types/finance";
+import { toDateOnlyString } from "@/utils/date";
+import {
+  formatCurrencyBRL,
+  formatCurrencyInput,
+  parseCurrencyToNumber,
+} from "@/utils/money";
 import { Target } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -93,18 +99,9 @@ const Goals = () => {
     setEditingId(goal.id);
     setNewGoal({
       name: goal.name,
-      targetAmount: goal.targetAmount.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-      currentAmount: goal.currentAmount.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-      monthlyDeposit: (goal.monthlyDeposit || 0).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+      targetAmount: formatCurrencyBRL(Number(goal.targetAmount)),
+      currentAmount: formatCurrencyBRL(Number(goal.currentAmount)),
+      monthlyDeposit: formatCurrencyBRL(Number(goal.monthlyDeposit || 0)),
       deadline: goal.deadline.split("T")[0],
       category: goal.category || "other",
     });
@@ -132,19 +129,28 @@ const Goals = () => {
       return;
     }
 
+    const targetAmount = parseCurrencyToNumber(newGoal.targetAmount);
+    const currentAmount = newGoal.currentAmount
+      ? parseCurrencyToNumber(newGoal.currentAmount)
+      : 0;
+    const monthlyDeposit = newGoal.monthlyDeposit
+      ? parseCurrencyToNumber(newGoal.monthlyDeposit)
+      : 0;
+
+    if (
+      !Number.isFinite(targetAmount) ||
+      !Number.isFinite(currentAmount) ||
+      !Number.isFinite(monthlyDeposit)
+    ) {
+      toast.error("Valor monetário inválido");
+      return;
+    }
+
     const payload = {
       name: newGoal.name,
-      targetAmount: parseFloat(
-        newGoal.targetAmount.replace(/\./g, "").replace(",", "."),
-      ),
-      currentAmount: newGoal.currentAmount
-        ? parseFloat(newGoal.currentAmount.replace(/\./g, "").replace(",", "."))
-        : 0,
-      monthlyDeposit: newGoal.monthlyDeposit
-        ? parseFloat(
-            newGoal.monthlyDeposit.replace(/\./g, "").replace(",", "."),
-          )
-        : 0,
+      targetAmount,
+      currentAmount,
+      monthlyDeposit,
       deadline: newGoal.deadline,
       category: newGoal.category,
     };
@@ -165,14 +171,6 @@ const Goals = () => {
       console.error("Erro ao salvar meta:", error);
       toast.error("Erro ao salvar meta");
     }
-  };
-
-  const formatCurrencyInput = (value: string) => {
-    const numericValue = Number(value.replace(/\D/g, "")) / 100;
-    return numericValue.toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
   };
 
   return (
@@ -299,7 +297,7 @@ const Goals = () => {
                       setNewGoal({
                         ...newGoal,
                         deadline: date
-                          ? date.toISOString().split("T")[0]
+                          ? toDateOnlyString(date)
                           : newGoal.deadline,
                       })
                     }

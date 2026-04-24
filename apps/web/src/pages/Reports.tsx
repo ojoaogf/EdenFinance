@@ -326,7 +326,7 @@ const Reports = () => {
                 <th className="px-6 py-3">Período</th>
                 <th className="px-6 py-3 text-right">Receita Bruta</th>
                 <th className="px-6 py-3 text-right">Despesas</th>
-                <th className="px-6 py-3 text-right">Margem</th>
+                <th className="px-6 py-3 text-right">Economia</th>
                 <th className="px-6 py-3 text-right">Status</th>
               </tr>
             </thead>

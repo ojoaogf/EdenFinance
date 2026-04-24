@@ -25,6 +25,7 @@ import {
 import { SmartDatePicker } from "@/components/ui/smart-date-picker";
 import { TransactionTypeSwitcher } from "@/components/ui/transaction-type-switcher";
 import { CATEGORIES } from "@/constants/categories";
+import { PAYMENT_TYPES, normalizePaymentType } from "@/constants/payment-types";
 import { TRANSACTION_CATEGORY_ICONS } from "@/constants/transaction-category-ui";
 import {
   useCreateTransaction,
@@ -33,6 +34,12 @@ import {
   useUpdateTransaction,
 } from "@/hooks/use-transactions";
 import type { Transaction, TransactionType } from "@/types/finance";
+import { toDateOnlyString } from "@/utils/date";
+import {
+  formatCurrencyBRL,
+  formatCurrencyInput,
+  parseCurrencyToNumber,
+} from "@/utils/money";
 import { Filter } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -74,7 +81,7 @@ const Transactions = () => {
     type: "expense" as TransactionType,
     category: "",
     paymentType: "",
-    date: new Date().toISOString().split("T")[0],
+    date: toDateOnlyString(new Date()),
     tags: [] as string[],
   });
 
@@ -88,7 +95,7 @@ const Transactions = () => {
         type: "expense" as TransactionType,
         category: "",
         paymentType: "",
-        date: new Date().toISOString().split("T")[0],
+        date: toDateOnlyString(new Date()),
         tags: [],
       });
     }
@@ -107,7 +114,12 @@ const Transactions = () => {
   useEffect(() => {
     if (!editingId) {
       // Only reset if not editing (keeps category when switching type in new mode)
-      setNewTransaction((prev) => ({ ...prev, category: "", tags: [] }));
+      setNewTransaction((prev) => ({
+        ...prev,
+        category: "",
+        tags: [],
+        paymentType: prev.type === "expense" ? prev.paymentType : "",
+      }));
     }
   }, [newTransaction.type, editingId]);
 
@@ -153,13 +165,10 @@ const Transactions = () => {
     setEditingId(transaction.id);
     setNewTransaction({
       description: transaction.description,
-      amount: transaction.amount.toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+      amount: formatCurrencyBRL(Number(transaction.amount)),
       type: transaction.type,
       category: transaction.category || "",
-      paymentType: transaction.paymentType || "",
+      paymentType: normalizePaymentType(transaction.paymentType),
       date: transaction.date.split("T")[0],
       tags: transaction.tags || [],
     });
@@ -176,14 +185,21 @@ const Transactions = () => {
       return;
     }
 
+    const parsedAmount = parseCurrencyToNumber(newTransaction.amount);
+    if (!Number.isFinite(parsedAmount)) {
+      toast.error("Valor monetário inválido");
+      return;
+    }
+
     const payload = {
       description: newTransaction.description,
-      amount: parseFloat(
-        newTransaction.amount.replace(/\./g, "").replace(",", "."),
-      ),
+      amount: parsedAmount,
       type: newTransaction.type,
       category: newTransaction.category,
-      paymentType: newTransaction.paymentType || undefined,
+      paymentType:
+        newTransaction.type === "expense"
+          ? normalizePaymentType(newTransaction.paymentType) || undefined
+          : undefined,
       date: newTransaction.date,
       tags: newTransaction.tags,
     };
@@ -313,18 +329,12 @@ const Transactions = () => {
                       type="text"
                       inputMode="numeric"
                       value={newTransaction.amount}
-                      onChange={(e) => {
-                        const value = e.target.value.replace(/\D/g, "");
-                        const numericValue = Number(value) / 100;
-                        const formatted = numericValue.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        });
+                      onChange={(e) =>
                         setNewTransaction({
                           ...newTransaction,
-                          amount: formatted,
-                        });
-                      }}
+                          amount: formatCurrencyInput(e.target.value),
+                        })
+                      }
                       className="h-14 pl-10 text-center text-2xl font-bold shadow-sm"
                       placeholder="0,00"
                       autoFocus
@@ -400,10 +410,11 @@ const Transactions = () => {
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Crédito">Crédito</SelectItem>
-                        <SelectItem value="Débito">Débito</SelectItem>
-                        <SelectItem value="Pix">Pix</SelectItem>
-                        <SelectItem value="VEE">VEE</SelectItem>
+                        {PAYMENT_TYPES.map((paymentType) => (
+                          <SelectItem key={paymentType} value={paymentType}>
+                            {paymentType}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -451,7 +462,7 @@ const Transactions = () => {
                         setNewTransaction({
                           ...newTransaction,
                           date: date
-                            ? date.toISOString().split("T")[0]
+                            ? toDateOnlyString(date)
                             : newTransaction.date,
                         })
                       }

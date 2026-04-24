@@ -16,7 +16,6 @@ export const TRANSACTION_CATEGORY_ICONS: Record<string, string> = {
   Investimentos: "📈",
   "Outros (Receita)": "💰",
   Freelance: "💰",
-  VEE: "💰",
 };
 
 const CATEGORY_ALIASES: Record<string, string> = {
@@ -49,7 +48,6 @@ const CATEGORY_ALIASES: Record<string, string> = {
   projeto: "Freelance",
   investimentos: "Investimentos",
   investimento: "Investimentos",
-  vee: "VEE",
   outros: "Outros",
 };
 
@@ -87,4 +85,3 @@ export const getTransactionCategoryIcon = (
   const canonical = getCanonicalTransactionCategoryName(category, type);
   return TRANSACTION_CATEGORY_ICONS[canonical] || "🏷️";
 };
-
