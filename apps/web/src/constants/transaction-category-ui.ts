@@ -13,7 +13,7 @@ export const TRANSACTION_CATEGORY_ICONS: Record<string, string> = {
   Viagem: "✈️",
   Outros: "📦",
   Salário: "💸",
-  Investimentos: "📈",
+  Investimento: "📈",
   "Outros (Receita)": "💰",
   Freelance: "💰",
 };
@@ -46,8 +46,8 @@ const CATEGORY_ALIASES: Record<string, string> = {
   freelance: "Freelance",
   freela: "Freelance",
   projeto: "Freelance",
-  investimentos: "Investimentos",
-  investimento: "Investimentos",
+  investimentos: "Investimento",
+  investimento: "Investimento",
   outros: "Outros",
 };
 
@@ -84,4 +84,30 @@ export const getTransactionCategoryIcon = (
 ) => {
   const canonical = getCanonicalTransactionCategoryName(category, type);
   return TRANSACTION_CATEGORY_ICONS[canonical] || "🏷️";
+};
+
+// Mesma biblioteca de ícones já usada nas categorias padrão (constante acima),
+// reaproveitada como opções selecionáveis ao criar/editar uma categoria.
+export const CATEGORY_ICON_OPTIONS: string[] = Array.from(
+  new Set([...Object.values(TRANSACTION_CATEGORY_ICONS), "🏷️"]),
+);
+
+export const DEFAULT_CATEGORY_ICON = "🏷️";
+
+// Ícone efetivo de uma categoria: prioriza o ícone escolhido/salvo pelo
+// usuário e só recorre à heurística por nome (acima) quando não há um
+// definido — categorias padrão antigas, por exemplo.
+export const resolveCategoryIcon = (
+  category: { name: string; icon?: string | null },
+  type?: TransactionType,
+) => category.icon || getTransactionCategoryIcon(category.name, type);
+
+export const buildCategoryIconMap = (
+  categories: { name: string; icon?: string | null; type: TransactionType }[],
+): Record<string, string> => {
+  const map: Record<string, string> = {};
+  categories.forEach((category) => {
+    map[category.name] = resolveCategoryIcon(category, category.type);
+  });
+  return map;
 };

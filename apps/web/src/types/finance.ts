@@ -23,6 +23,9 @@ export interface Transaction {
   date: string;
   createdAt?: string;
   tags: string[];
+  installmentPlanId?: string;
+  installmentNumber?: number;
+  installmentTotal?: number;
 }
 
 export interface Investment {
@@ -47,6 +50,40 @@ export interface MonthlyReport {
   expenses: number;
   balance: number;
   savingsRate: number;
+  invested: number;
+  cumulativeBalance: number;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  type: TransactionType;
+  icon?: string;
+  isTransfer: boolean;
+  usageCount: number;
+}
+
+export interface SpendingLimit {
+  categoryName: string;
+  limitAmount: number;
+  periodLimitAmount: number;
+  spentAmount: number;
+  percent: number;
+}
+
+export interface InstallmentPlan {
+  id: string;
+  description: string;
+  category: string;
+  paymentType?: string;
+  installmentAmount: number;
+  totalInstallments: number;
+  startDate: string;
+  paidInstallments: number;
+  remainingInstallments: number;
+  remainingAmount: number;
+  nextDueDate: string | null;
+  status: "ativo" | "concluido";
 }
 
 export interface FinancialGoal {
@@ -57,13 +94,6 @@ export interface FinancialGoal {
   monthlyDeposit: number;
   deadline: string;
   category?: string;
-}
-
-export interface Label {
-  id: string;
-  name: string;
-  color: string;
-  description?: string;
 }
 
 export interface UserProfile {
