@@ -1,12 +1,42 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { getEndOfTodayUtc } from '../common/date-only';
 import { PrismaService } from '../prisma/prisma.service';
+import { TransactionsService } from '../transactions/transactions.service';
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly transactionsService: TransactionsService,
+  ) {}
+
+  /**
+   * Categorias marcadas como "transferência" (ex: aportes em investimentos)
+   * representam movimentação de dinheiro que o usuário já possui, não gasto
+   * ou receita real — por isso ficam de fora de todos os totais/relatórios,
+   * embora continuem aparecendo normalmente no extrato de Transações.
+   */
+  private async getTransferCategoryNames(userId: string) {
+    const categories = await this.prisma.category.findMany({
+      where: { userId, isTransfer: true },
+      select: { name: true },
+    });
+    return categories.map((c) => c.name);
+  }
 
   async getDashboardSummary(userId: string) {
+    // Abrir o Dashboard é o gatilho para "colocar em dia" os lançamentos de
+    // despesas fixas (etiqueta "Fixo") dos meses que ficaram pendentes,
+    // sem depender de nenhum job agendado.
+    await this.transactionsService.generatePendingFixedOccurrences(userId);
+
+    // Parcelas de um parcelamento são lançadas com data futura no momento da
+    // criação (para já refletir nos relatórios do mês correspondente), mas não
+    // podem contar como dinheiro já recebido/gasto antes da data combinada.
+    const cutoff = getEndOfTodayUtc();
+    const transferCategoryNames = await this.getTransferCategoryNames(userId);
+
     // Agregação de Receitas
     const incomeAgg = await this.prisma.transaction.aggregate({
       _sum: {
@@ -15,6 +45,8 @@ export class ReportsService {
       where: {
         userId,
         type: 'income',
+        date: { lte: cutoff },
+        category: { notIn: transferCategoryNames },
       },
     });
 
@@ -26,6 +58,8 @@ export class ReportsService {
       where: {
         userId,
         type: 'expense',
+        date: { lte: cutoff },
+        category: { notIn: transferCategoryNames },
       },
     });
 
@@ -33,9 +67,9 @@ export class ReportsService {
     const totalExpense = Number(expenseAgg._sum.amount || 0);
     const balance = totalIncome - totalExpense;
 
-    // Últimas 5 transações
+    // Últimas 5 transações (não conta parcelas futuras como "recentes")
     const recentTransactions = await this.prisma.transaction.findMany({
-      where: { userId },
+      where: { userId, date: { lte: cutoff } },
       orderBy: { date: 'desc' },
       take: 5,
     });
@@ -49,9 +83,12 @@ export class ReportsService {
   }
 
   async getExpensesByCategory(userId: string, year?: number, month?: number) {
+    const transferCategoryNames = await this.getTransferCategoryNames(userId);
+
     const where: Prisma.TransactionWhereInput = {
       userId,
       type: 'expense',
+      category: { notIn: transferCategoryNames },
     };
 
     if (year) {
@@ -88,6 +125,9 @@ export class ReportsService {
     type?: string,
     months?: number,
   ) {
+    const transferCategoryNames = await this.getTransferCategoryNames(userId);
+    const transferCategorySet = new Set(transferCategoryNames);
+
     const where: Prisma.TransactionWhereInput = {
       userId,
     };
@@ -120,19 +160,37 @@ export class ReportsService {
       lte: endDate,
     };
 
-    const transactions = await this.prisma.transaction.findMany({
-      where,
-      orderBy: { date: 'asc' },
-    });
+    const [transactions, cumulativeBalanceByMonth] = await Promise.all([
+      this.prisma.transaction.findMany({
+        where,
+        orderBy: { date: 'asc' },
+      }),
+      this.getCumulativeBalanceByMonth(userId),
+    ]);
 
-    // Agrupar por mês
-    const monthlyData = new Map<string, { income: number; expense: number }>();
+    // Agrupar por mês. Transações de categorias de transferência (ex:
+    // Investimento) ficam fora de income/expense (não são gasto/receita
+    // real) e somam à parte em "invested" — é dinheiro que saiu da conta
+    // corrente para outro lugar do próprio patrimônio do usuário, não uma
+    // despesa, mas ainda vale acompanhar quanto foi movimentado por mês.
+    const monthlyData = new Map<
+      string,
+      { income: number; expense: number; invested: number }
+    >();
 
     transactions.forEach((t) => {
       const monthKey = t.date.toISOString().slice(0, 7); // YYYY-MM
-      const current = monthlyData.get(monthKey) || { income: 0, expense: 0 };
+      const current = monthlyData.get(monthKey) || {
+        income: 0,
+        expense: 0,
+        invested: 0,
+      };
 
-      if (t.type === 'income') {
+      if (transferCategorySet.has(t.category)) {
+        if (t.type === 'expense') {
+          current.invested += Number(t.amount);
+        }
+      } else if (t.type === 'income') {
         current.income += Number(t.amount);
       } else {
         current.expense += Number(t.amount);
@@ -154,8 +212,51 @@ export class ReportsService {
           expenses,
           balance,
           savingsRate,
+          invested: data.invested,
+          cumulativeBalance: cumulativeBalanceByMonth.get(month) ?? balance,
         };
       })
       .sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  /**
+   * Saldo acumulado por mês (o saldo de um mês soma o de todos os meses anteriores),
+   * calculado a partir do histórico completo do usuário — independente de filtros de
+   * ano/tipo aplicados na tela — para que o "transporte" de saldo entre meses seja
+   * sempre correto, sem exigir nenhum lançamento manual.
+   *
+   * Diferente de income/expenses (que excluem categorias de transferência,
+   * como Investimento, por não serem gasto real), aqui TODAS as transações
+   * entram — este número representa liquidez de verdade, quanto sobrou na
+   * conta corrente. Dinheiro investido saiu da conta, então precisa ser
+   * descontado, mesmo continuando patrimônio do usuário.
+   */
+  private async getCumulativeBalanceByMonth(userId: string) {
+    const allTransactions = await this.prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { date: 'asc' },
+      select: { date: true, type: true, amount: true },
+    });
+
+    const netByMonth = new Map<string, number>();
+    allTransactions.forEach((t) => {
+      const monthKey = t.date.toISOString().slice(0, 7);
+      const signedAmount =
+        t.type === 'income' ? Number(t.amount) : -Number(t.amount);
+      netByMonth.set(monthKey, (netByMonth.get(monthKey) ?? 0) + signedAmount);
+    });
+
+    const sortedMonths = Array.from(netByMonth.keys()).sort((a, b) =>
+      a.localeCompare(b),
+    );
+
+    const cumulativeByMonth = new Map<string, number>();
+    let runningBalance = 0;
+    for (const month of sortedMonths) {
+      runningBalance += netByMonth.get(month) ?? 0;
+      cumulativeByMonth.set(month, runningBalance);
+    }
+
+    return cumulativeByMonth;
   }
 }

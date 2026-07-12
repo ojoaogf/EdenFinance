@@ -100,7 +100,7 @@ export class GoalsService {
           description: `Aporte: ${goal.name}`,
           amount: amount,
           type: 'expense',
-          category: 'Investimentos',
+          category: 'Investimento',
           date: new Date(),
           goalId: id,
         },

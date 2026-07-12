@@ -8,21 +8,26 @@ datasource db {
 }
 
 model Transaction {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  description String
-  amount      Decimal  @db.Decimal(14, 2)
-  type        String
-  category    String
-  paymentType String?  @map("payment_type")
-  date        DateTime @db.Date
-  tags        String[]
-  goalId      String?  @map("goal_id") @db.Uuid
-  goal        Goal?    @relation(fields: [goalId], references: [id])
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  description       String
+  amount            Decimal          @db.Decimal(14, 2)
+  type              String
+  category          String
+  paymentType       String?          @map("payment_type")
+  date              DateTime         @db.Date
+  tags              String[]
+  goalId            String?          @map("goal_id") @db.Uuid
+  goal              Goal?            @relation(fields: [goalId], references: [id])
+  installmentPlanId String?          @map("installment_plan_id") @db.Uuid
+  installmentPlan   InstallmentPlan? @relation(fields: [installmentPlanId], references: [id], onDelete: SetNull)
+  installmentNumber Int?             @map("installment_number")
+  installmentTotal  Int?             @map("installment_total")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
 
   @@index([userId, date], map: "idx_transactions_user_date")
   @@index([userId, type, date], map: "idx_transactions_user_type_date")
+  @@index([installmentPlanId], map: "idx_transactions_installment_plan")
   @@map("transactions")
 }
 
@@ -55,4 +60,61 @@ model Goal {
 
   @@index([userId, deadline], map: "idx_goals_user_deadline")
   @@map("goals")
+}
+
+model Category {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  name       String
+  type       String
+  icon       String?
+  isTransfer Boolean  @default(false) @map("is_transfer")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([userId, name, type], map: "uq_categories_user_name_type")
+  @@index([userId, type], map: "idx_categories_user_type")
+  @@map("categories")
+}
+
+model InstallmentPlan {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  description       String
+  category          String
+  paymentType       String?       @map("payment_type")
+  installmentAmount Decimal       @map("installment_amount") @db.Decimal(14, 2)
+  totalInstallments Int           @map("total_installments")
+  startDate         DateTime      @map("start_date") @db.Date
+  transactions      Transaction[]
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([userId], map: "idx_installment_plans_user")
+  @@map("installment_plans")
+}
+
+/// Tabela interna (sem tela/CRUD) que registra quando uma ocorrência mensal
+/// de despesa fixa foi excluída de propósito, para a geração automática não
+/// recriá-la — e para não avançar a cadeia além do mês excluído até que uma
+/// nova transação "Fixo" seja lançada manualmente para a mesma despesa.
+model FixedExpenseSkip {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  description String
+  category    String
+  monthKey    String   @map("month_key")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([userId, description, category, monthKey], map: "uq_fixed_expense_skips_group_month")
+  @@map("fixed_expense_skips")
+}
+
+model SpendingLimit {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  categoryName String   @map("category_name")
+  limitAmount  Decimal  @map("limit_amount") @db.Decimal(14, 2)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@unique([userId, categoryName], map: "uq_spending_limits_user_category")
+  @@map("spending_limits")
 }
