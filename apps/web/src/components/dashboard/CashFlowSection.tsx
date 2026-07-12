@@ -144,7 +144,7 @@ export function CashFlowSection({
   return (
     <Card className={cn("h-full p-6", className)}>
       <CardHeader className="p-0 pb-4">
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="text-lg">{title}</CardTitle>
         <CardDescription>
           {computedDescription} •{" "}
           <span

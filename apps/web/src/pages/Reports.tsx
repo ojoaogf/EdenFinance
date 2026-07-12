@@ -1,9 +1,12 @@
 import { CashFlowSection } from "@/components/dashboard/CashFlowSection";
 import { ExpensesByCategorySection } from "@/components/dashboard/ExpensesByCategorySection";
 import { KPICardsSection } from "@/components/dashboard/KPICardsSection";
+import { RecentTransactions } from "@/components/dashboard/RecentTransactions";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { SpendingLimitsCard } from "@/components/reports/SpendingLimitsCard";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -11,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCategories } from "@/hooks/use-categories";
 import {
   useExpensesByCategory,
   useMonthlyEvolution,
@@ -18,6 +22,7 @@ import {
 import { useTransactions } from "@/hooks/use-transactions";
 import { api } from "@/lib/api";
 import type { Transaction } from "@/types/finance";
+import { toLocalDateFromDateOnly } from "@/utils/date";
 import { generateExcelReport } from "@/utils/excel-exporter";
 import {
   filterMonthlyReportsByPeriod,
@@ -27,7 +32,7 @@ import { Table2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 const Reports = () => {
-  const [viewMode, setViewMode] = useState<"year" | "month">("year");
+  const [viewMode, setViewMode] = useState<"year" | "month">("month");
   const [year, setYear] = useState(new Date().getFullYear().toString());
   const [month, setMonth] = useState((new Date().getMonth() + 1).toString());
   const [type, setType] = useState<"all" | "income" | "expense">("all");
@@ -41,12 +46,26 @@ const Reports = () => {
     hookYear,
     hookMonth,
   );
-  const { data: transactions = [] } = useTransactions();
+  const { data: categories = [] } = useCategories();
+  const { data: transactionsAll = [] } = useTransactions();
 
   const filteredMonthlyReports = useMemo(
     () =>
       filterMonthlyReportsByPeriod(monthlyReports, { viewMode, year, month }),
     [monthlyReports, viewMode, year, month],
+  );
+
+  const recentTransactions = useMemo(
+    () =>
+      filterTransactionsByPeriod(transactionsAll, { viewMode, year, month })
+        .slice()
+        .sort(
+          (a, b) =>
+            toLocalDateFromDateOnly(b.date).getTime() -
+            toLocalDateFromDateOnly(a.date).getTime(),
+        )
+        .slice(0, 8),
+    [transactionsAll, viewMode, year, month],
   );
 
   const handleExportExcel = async () => {
@@ -67,41 +86,16 @@ const Reports = () => {
       return;
     }
 
-    generateExcelReport(transactions, periodLabel);
+    const transferCategoryNames = categories
+      .filter((c) => c.isTransfer)
+      .map((c) => c.name);
+
+    generateExcelReport(transactions, periodLabel, transferCategoryNames);
   };
-
-  const periodTransactions = useMemo(
-    () =>
-      filterTransactionsByPeriod(transactions, { viewMode, year, month }, type),
-    [transactions, viewMode, year, month, type],
-  );
-
-  const incomeSources = useMemo(() => {
-    const grouped = periodTransactions
-      .filter((tx) => tx.type === "income")
-      .reduce<Record<string, number>>((acc, tx) => {
-        const key = tx.category || "Outros";
-        acc[key] = (acc[key] ?? 0) + Number(tx.amount);
-        return acc;
-      }, {});
-
-    const total = Object.values(grouped).reduce((sum, value) => sum + value, 0);
-    const entries = Object.entries(grouped)
-      .map(([category, amount]) => ({
-        category,
-        amount,
-        percent: total > 0 ? (amount / total) * 100 : 0,
-      }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 4);
-
-    return { total, entries };
-  }, [periodTransactions]);
 
   const operationalRows = useMemo(() => {
     return [...filteredMonthlyReports]
       .sort((a, b) => b.month.localeCompare(a.month))
-      .slice(0, 4)
       .map((row) => {
         const income = Number(row.income);
         const expenses = Number(row.expenses);
@@ -113,7 +107,8 @@ const Reports = () => {
           income,
           expenses,
           margin,
-          status: balance >= 0 ? "CONCLUÍDO" : "ALERTA",
+          invested: Number(row.invested),
+          cumulativeBalance: Number(row.cumulativeBalance),
         };
       });
   }, [filteredMonthlyReports]);
@@ -147,8 +142,8 @@ const Reports = () => {
 
   return (
     <AppLayout
-      title="Relatórios de Patrimônio"
-      subtitle="Análises detalhadas da sua performance financeira"
+      title="Resumo Financeiro"
+      subtitle="Bem-vindo de volta. Acompanhe receitas, despesas e histórico financeiro."
       actions={
         <>
           <Button variant="outline" size="sm" onClick={handleExportExcel}>
@@ -158,7 +153,7 @@ const Reports = () => {
         </>
       }
     >
-      <Card className="mb-6 p-4">
+      <Card className="mb-8 p-4">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -241,16 +236,21 @@ const Reports = () => {
       </div>
 
       {/* Charts */}
-      <div className="mb-8">
-        <CashFlowSection
-          monthlyReports={monthlyReports}
-          viewMode={viewMode}
-          year={year}
-          month={month}
-          title="Fluxo de Caixa Mensal"
-          description="Análise histórica do último semestre"
-          height={330}
-        />
+      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <CashFlowSection
+            monthlyReports={monthlyReports}
+            viewMode={viewMode}
+            year={year}
+            month={month}
+            title="Fluxo de Caixa Mensal"
+            description="Análise histórica do ano"
+            height={330}
+          />
+        </div>
+        <div className="lg:col-span-1">
+          <RecentTransactions transactions={recentTransactions} />
+        </div>
       </div>
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -260,107 +260,89 @@ const Reports = () => {
           title="Gastos por Categoria"
           emptyMessage="Nenhuma despesa registrada."
         />
-        <Card className="p-6">
-          <CardHeader className="p-0 pb-6">
-            <CardTitle className="text-lg">Fontes de Renda</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {incomeSources.total === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Sem receitas no período selecionado.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full border-[12px] border-primary/20">
-                  <div className="text-center">
-                    <p className="text-3xl font-extrabold text-primary">
-                      {incomeSources.entries[0]?.percent.toFixed(0) ?? 0}%
-                    </p>
-                    <p className="terminal-label">Principal</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {incomeSources.entries.map((item) => (
-                    <div
-                      key={item.category}
-                      className="flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {item.category}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {item.percent.toFixed(1)}%
-                        </p>
-                      </div>
-                      <p className="text-sm font-bold text-foreground">
-                        {item.amount.toLocaleString("pt-BR", {
-                          style: "currency",
-                          currency: "BRL",
-                        })}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <SpendingLimitsCard year={hookYear} month={hookMonth} />
       </div>
 
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between border-b border-border/50 px-6 py-4">
-          <h3 className="terminal-label text-foreground">Resumo Operacional</h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary hover:text-primary"
-          >
-            Ver detalhes
-          </Button>
+        <div className="border-b border-border/50 px-6 py-4">
+          <h3 className="text-lg font-semibold text-foreground">
+            Resumo Operacional
+          </h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px]">
-            <thead>
-              <tr className="terminal-label text-left">
+        <ScrollArea className="h-[420px]">
+          <table className="w-full min-w-[880px]">
+            <thead className="sticky top-0 z-10 bg-card">
+              <tr className="terminal-label text-center">
                 <th className="px-6 py-3">Período</th>
-                <th className="px-6 py-3 text-right">Receita Bruta</th>
-                <th className="px-6 py-3 text-right">Despesas</th>
-                <th className="px-6 py-3 text-right">Economia</th>
-                <th className="px-6 py-3 text-right">Status</th>
+                <th className="px-6 py-3">Receita Bruta</th>
+                <th className="px-6 py-3">Despesas</th>
+                <th className="px-6 py-3">
+                  Investido
+                  <span
+                    className="ml-1 cursor-help text-muted-foreground/70 normal-case"
+                    title="Soma das transações de categorias marcadas como transferência (ex: Investimento) — não é despesa, só mostra quanto foi movimentado no mês."
+                  >
+                    (ⓘ)
+                  </span>
+                </th>
+                <th className="px-6 py-3">Margem</th>
+                <th className="px-6 py-3">
+                  Saldo Acumulado
+                  {type !== "all" && (
+                    <span
+                      className="ml-1 cursor-help text-muted-foreground/70 normal-case"
+                      title="O Saldo Acumulado sempre considera todas as receitas e despesas reais, independente do filtro de Tipo selecionado acima."
+                    >
+                      (ⓘ)
+                    </span>
+                  )}
+                </th>
               </tr>
             </thead>
             <tbody>
               {operationalRows.map((row) => (
-                <tr key={row.month} className="border-t border-border/40">
+                <tr key={row.month} className="border-t border-border/40 text-center">
                   <td className="px-6 py-4 font-medium text-foreground">
                     {formatMonthLabel(row.month)}
                   </td>
-                  <td className="px-6 py-4 text-right font-mono text-foreground">
+                  <td className="px-6 py-4 font-mono text-foreground">
                     {row.income.toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
                     })}
                   </td>
-                  <td className="px-6 py-4 text-right font-mono text-chart-2">
+                  <td className="px-6 py-4 font-mono text-chart-2">
                     {row.expenses.toLocaleString("pt-BR", {
                       style: "currency",
                       currency: "BRL",
                     })}
                   </td>
-                  <td className="px-6 py-4 text-right font-bold text-chart-1">
+                  <td className="px-6 py-4 font-mono text-primary">
+                    {row.invested.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </td>
+                  <td className="px-6 py-4 font-bold text-chart-1">
                     {row.margin.toFixed(1)}%
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary">
-                      {row.status}
-                    </span>
+                  <td
+                    className={`px-6 py-4 font-mono font-semibold ${
+                      row.cumulativeBalance >= 0
+                        ? "text-foreground"
+                        : "text-destructive"
+                    }`}
+                  >
+                    {row.cumulativeBalance.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       </Card>
     </AppLayout>
   );

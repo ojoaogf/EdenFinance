@@ -3,6 +3,8 @@ import { TransactionFilters } from "@/components/transactions/TransactionFilters
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { Card, CardContent } from "@/components/ui/card";
 import { CreateActionButton } from "@/components/ui/create-action-button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -24,9 +26,9 @@ import {
 } from "@/components/ui/select";
 import { SmartDatePicker } from "@/components/ui/smart-date-picker";
 import { TransactionTypeSwitcher } from "@/components/ui/transaction-type-switcher";
-import { CATEGORIES } from "@/constants/categories";
 import { PAYMENT_TYPES, normalizePaymentType } from "@/constants/payment-types";
-import { TRANSACTION_CATEGORY_ICONS } from "@/constants/transaction-category-ui";
+import { buildCategoryIconMap } from "@/constants/transaction-category-ui";
+import { useCategories } from "@/hooks/use-categories";
 import {
   useCreateTransaction,
   useDeleteTransaction,
@@ -40,14 +42,30 @@ import {
   formatCurrencyInput,
   parseCurrencyToNumber,
 } from "@/utils/money";
+import { filterTransactionsByPeriod } from "@/utils/report-period";
+import { cn } from "@/lib/utils";
 import { Filter } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 
-const categoryIcons: Record<string, string> = {
-  ...TRANSACTION_CATEGORY_ICONS,
-};
+const startYear = 2026;
+const years = Array.from({ length: 5 }, (_, i) => (startYear + i).toString());
+
+const months = [
+  { value: "1", label: "Janeiro" },
+  { value: "2", label: "Fevereiro" },
+  { value: "3", label: "Março" },
+  { value: "4", label: "Abril" },
+  { value: "5", label: "Maio" },
+  { value: "6", label: "Junho" },
+  { value: "7", label: "Julho" },
+  { value: "8", label: "Agosto" },
+  { value: "9", label: "Setembro" },
+  { value: "10", label: "Outubro" },
+  { value: "11", label: "Novembro" },
+  { value: "12", label: "Dezembro" },
+];
 
 const tagIcons: Record<string, string> = {
   Fixo: "🔒",
@@ -67,12 +85,16 @@ const getApiErrorMessage = (error: unknown) => {
 const Transactions = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: transactions = [], isLoading } = useTransactions();
+  const { data: categories = [] } = useCategories();
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
   const deleteTransaction = useDeleteTransaction();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string>("all");
+  const [viewMode, setViewMode] = useState<"year" | "month">("month");
+  const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [month, setMonth] = useState((new Date().getMonth() + 1).toString());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newTransaction, setNewTransaction] = useState({
@@ -123,35 +145,29 @@ const Transactions = () => {
     }
   }, [newTransaction.type, editingId]);
 
-  const filteredCategories = CATEGORIES.filter(
+  const filteredCategories = categories.filter(
     (category) =>
       category.type.toLowerCase() === newTransaction.type.toLowerCase(),
   );
 
-  const filteredTransactions = transactions.filter((t) => {
+  const categoryIcons = useMemo(
+    () => buildCategoryIconMap(categories),
+    [categories],
+  );
+
+  const periodTransactions = useMemo(
+    () =>
+      filterTransactionsByPeriod(transactions, { viewMode, year, month }),
+    [transactions, viewMode, year, month],
+  );
+
+  const filteredTransactions = periodTransactions.filter((t) => {
     const matchesSearch = t.description
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesType = filterType === "all" || t.type === filterType;
     return matchesSearch && matchesType;
   });
-
-  const stats = useMemo(() => {
-    const income = filteredTransactions
-      .filter((t) => t.type === "income")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const expenses = filteredTransactions
-      .filter((t) => t.type === "expense")
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const balance = income - expenses;
-
-    return {
-      income,
-      expenses,
-      balance,
-      portfolio: income > 0 ? income * 0.42 : 0,
-    };
-  }, [filteredTransactions]);
 
   const handleDelete = (id: string) => {
     toast.promise(deleteTransaction.mutateAsync(id), {
@@ -241,52 +257,63 @@ const Transactions = () => {
       title="Transações"
       subtitle="Gerencie seu fluxo de caixa global em tempo real."
     >
-      {/*<div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Card variant="info" className="p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Balanço Total
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-foreground">
-            {stats.balance.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </p>
-        </Card>
-        <Card variant="success" className="p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Entradas
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-chart-3">
-            {stats.income.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </p>
-        </Card>
-        <Card variant="danger" className="p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Despesas
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-chart-2">
-            {stats.expenses.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </p>
-        </Card>
-        <Card variant="warning" className="p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            Investimentos
-          </p>
-          <p className="mt-1 text-2xl font-extrabold text-primary">
-            {stats.portfolio.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </p>
-        </Card>
-      </div>*/}
+      <Card className="mb-6 p-4">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode("month")}
+            className={`rounded-md px-4 py-2 text-xs font-bold uppercase tracking-wider transition ${
+              viewMode === "month"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background/60 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Mensal
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode("year")}
+            className={`rounded-md px-4 py-2 text-xs font-bold uppercase tracking-wider transition ${
+              viewMode === "year"
+                ? "bg-primary text-primary-foreground"
+                : "bg-background/60 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Anual
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-4">
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Ano" />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={y}>
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {viewMode === "month" && (
+            <Select value={month} onValueChange={setMonth}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                {months.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </Card>
 
       <TransactionFilters
         filterType={filterType}
@@ -358,67 +385,76 @@ const Transactions = () => {
                   />
                 </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="category">Categoria</Label>
-                  <Select
-                    value={newTransaction.category}
-                    onValueChange={(value) =>
-                      setNewTransaction({
-                        ...newTransaction,
-                        category: value,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Selecione a categoria" />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="popper"
-                      side="right"
-                      align="start"
-                      className="max-h-[500px] w-[200px]"
-                    >
-                      {filteredCategories.length > 0 ? (
-                        filteredCategories.map((category) => (
-                          <SelectItem key={category.id} value={category.name}>
-                            {categoryIcons[category.name] || "🏷️"}{" "}
-                            {category.name}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="empty" disabled>
-                          Nenhuma categoria disponível
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <p className="terminal-label pt-1">Detalhes</p>
 
-                {newTransaction.type === "expense" && (
+                <div
+                  className={cn(
+                    "grid gap-4",
+                    newTransaction.type === "expense" && "grid-cols-2",
+                  )}
+                >
                   <div className="grid gap-2">
-                    <Label htmlFor="paymentType">Tipo de Pagamento</Label>
+                    <Label htmlFor="category">Categoria</Label>
                     <Select
-                      value={newTransaction.paymentType || ""}
+                      value={newTransaction.category}
                       onValueChange={(value) =>
                         setNewTransaction({
                           ...newTransaction,
-                          paymentType: value,
+                          category: value,
                         })
                       }
                     >
                       <SelectTrigger className="h-11">
-                        <SelectValue placeholder="Selecione o tipo" />
+                        <SelectValue placeholder="Selecione" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {PAYMENT_TYPES.map((paymentType) => (
-                          <SelectItem key={paymentType} value={paymentType}>
-                            {paymentType}
+                      <SelectContent
+                        position="popper"
+                        side="right"
+                        align="start"
+                        className="max-h-[500px] w-[200px]"
+                      >
+                        {filteredCategories.length > 0 ? (
+                          filteredCategories.map((category) => (
+                            <SelectItem key={category.id} value={category.name}>
+                              {categoryIcons[category.name] || "🏷️"}{" "}
+                              {category.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="empty" disabled>
+                            Nenhuma categoria disponível
                           </SelectItem>
-                        ))}
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+
+                  {newTransaction.type === "expense" && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="paymentType">Pagamento</Label>
+                      <Select
+                        value={newTransaction.paymentType || ""}
+                        onValueChange={(value) =>
+                          setNewTransaction({
+                            ...newTransaction,
+                            paymentType: value,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_TYPES.map((paymentType) => (
+                            <SelectItem key={paymentType} value={paymentType}>
+                              {paymentType}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
 
                 {newTransaction.type === "expense" && (
                   <div className="grid gap-2">
@@ -489,33 +525,31 @@ const Transactions = () => {
       />
 
       {/* Transactions List */}
-      <Card className="min-h-[400px]">
+      <Card className="min-h-[400px] overflow-hidden">
         <CardContent className="p-6">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">
               Carregando transações...
             </div>
           ) : filteredTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center p-8 text-center h-full">
-              <div className="mb-4 rounded-full bg-secondary/50 p-4">
-                <Filter className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="mb-1 text-lg font-medium">
-                Nenhuma transação encontrada
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {searchTerm || filterType !== "all"
-                  ? "Tente ajustar seus filtros de busca."
-                  : "Comece adicionando sua primeira transação."}
-              </p>
-            </div>
-          ) : (
-            <TransactionList
-              transactions={filteredTransactions}
-              categoryIcons={categoryIcons}
-              onDelete={handleDelete}
-              onEdit={handleEdit}
+            <EmptyState
+              icon={Filter}
+              title="Nenhuma transação encontrada"
+              description={
+                transactions.length === 0
+                  ? "Comece adicionando sua primeira transação."
+                  : "Nenhuma transação neste período. Tente ajustar o período ou os filtros de busca."
+              }
             />
+          ) : (
+            <ScrollArea className="h-[640px] pr-3">
+              <TransactionList
+                transactions={filteredTransactions}
+                categoryIcons={categoryIcons}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+              />
+            </ScrollArea>
           )}
         </CardContent>
       </Card>

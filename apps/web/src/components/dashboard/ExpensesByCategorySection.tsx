@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   getCanonicalTransactionCategoryName,
   getTransactionCategoryIcon,
@@ -56,14 +57,7 @@ const formatCurrencyCompact = (value: number) =>
 const truncateLabel = (value: string, max = 14) =>
   value.length > max ? `${value.slice(0, max)}…` : value;
 
-const LIST_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--primary))",
-];
+const LIST_COLOR = "hsl(var(--primary))";
 
 export function ExpensesByCategorySection({
   data,
@@ -76,31 +70,50 @@ export function ExpensesByCategorySection({
   className,
 }: ExpensesByCategorySectionProps) {
   const prepared = useMemo(() => {
-    const items = data
-      .map((item) => ({
-        category: getCanonicalTransactionCategoryName(item.category, "expense"),
-        amount: Number(item.amount) || 0,
-      }))
+    // Merge duplicate raw categories (e.g. casing/legacy variants) that all
+    // canonicalize to the same display name, so they don't show up as
+    // separate rows with the same label.
+    const grouped = new Map<string, number>();
+    data.forEach((item) => {
+      const category = getCanonicalTransactionCategoryName(
+        item.category,
+        "expense",
+      );
+      const amount = Number(item.amount) || 0;
+      grouped.set(category, (grouped.get(category) ?? 0) + amount);
+    });
+
+    const items = Array.from(grouped.entries())
+      .map(([category, amount]) => ({ category, amount }))
       .filter((item) => item.amount > 0)
       .sort((a, b) => b.amount - a.amount);
 
     const total = items.reduce((sum, item) => sum + item.amount, 0);
 
+    const toPercent = (list: { category: string; amount: number }[]) =>
+      list.map((item) => ({
+        category: item.category,
+        amount: item.amount,
+        percent: total > 0 ? (item.amount / total) * 100 : 0,
+      }));
+
+    // The full list (used by the scrollable "list" variant) never
+    // truncates categories, so no category is ever merged into a synthetic
+    // "Outros" bucket that could collide with a real "Outros" category.
+    const full: CategoryDatum[] = toPercent(items);
+
+    // Charts (bar/donut) still cap to topN + a synthetic "Outros" tail for
+    // readability, since they don't scroll.
     const head = items.slice(0, Math.max(1, topN));
     const tailTotal = items
       .slice(Math.max(1, topN))
       .reduce((sum, item) => sum + item.amount, 0);
+    const chartItems = [...head];
+    if (tailTotal > 0) {
+      chartItems.push({ category: "Outros (agrupado)", amount: tailTotal });
+    }
 
-    const merged = [...head];
-    if (tailTotal > 0) merged.push({ category: "Outros", amount: tailTotal });
-
-    const withPercent: CategoryDatum[] = merged.map((item) => ({
-      category: item.category,
-      amount: item.amount,
-      percent: total > 0 ? (item.amount / total) * 100 : 0,
-    }));
-
-    return { total, data: withPercent };
+    return { total, data: toPercent(chartItems), fullData: full };
   }, [data, topN]);
 
   if (variant === "donut") {
@@ -129,7 +142,7 @@ export function ExpensesByCategorySection({
         <CardHeader className="p-0 pb-5">
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>{title}</CardTitle>
+              <CardTitle className="text-lg">{title}</CardTitle>
             </div>
             <div className="text-right">
               <p className="terminal-label">Total</p>
@@ -141,25 +154,27 @@ export function ExpensesByCategorySection({
         </CardHeader>
 
         <CardContent className="p-0">
-          {prepared.data.length === 0 ? (
+          {prepared.fullData.length === 0 ? (
             <div className="flex min-h-[220px] flex-col items-center justify-center gap-2 text-muted-foreground">
               <div className="h-12 w-12 rounded-full bg-muted/50" />
               <p>{emptyMessage}</p>
             </div>
           ) : (
-            <div className="space-y-1">
-              {prepared.data.map((item, index) => {
-                const color = LIST_COLORS[index % LIST_COLORS.length];
-                return (
+            <ScrollArea
+              className="h-[320px] pr-3"
+              viewportClassName="snap-y snap-mandatory"
+            >
+              <div className="space-y-1">
+                {prepared.fullData.map((item, index) => (
                   <div
                     key={item.category}
-                    className="grid grid-cols-[26px_1.2fr_1.8fr_48px_96px] items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/30"
+                    className="grid snap-start scroll-mt-1 grid-cols-[1.5fr_1.6fr_44px_96px] items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/30"
                   >
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      #{index + 1}
-                    </span>
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="text-base leading-none">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+                        #{index + 1}
+                      </span>
+                      <span className="shrink-0 text-base leading-none">
                         {getTransactionCategoryIcon(item.category, "expense")}
                       </span>
                       <span className="truncate text-sm font-semibold text-foreground">
@@ -171,13 +186,13 @@ export function ExpensesByCategorySection({
                         className="h-full rounded-full"
                         style={{
                           width: `${Math.max(3, item.percent)}%`,
-                          backgroundColor: color,
+                          backgroundColor: LIST_COLOR,
                         }}
                       />
                     </div>
                     <span
                       className="text-right text-sm font-bold"
-                      style={{ color }}
+                      style={{ color: LIST_COLOR }}
                     >
                       {item.percent.toFixed(0)}%
                     </span>
@@ -185,29 +200,26 @@ export function ExpensesByCategorySection({
                       {formatCurrency(item.amount)}
                     </span>
                   </div>
-                );
-              })}
+                ))}
 
-              <div className="mt-3 flex flex-wrap gap-4 border-t border-border/60 pt-3">
-                {prepared.data.map((item, index) => {
-                  const color = LIST_COLORS[index % LIST_COLORS.length];
-                  return (
+                <div className="mt-3 flex snap-start flex-wrap gap-4 border-t border-border/60 pt-3">
+                  {prepared.fullData.map((item) => (
                     <div
                       key={`${item.category}-legend`}
                       className="flex items-center gap-2"
                     >
                       <span
                         className="h-2 w-2 rounded-full"
-                        style={{ backgroundColor: color }}
+                        style={{ backgroundColor: LIST_COLOR }}
                       />
                       <span className="text-xs text-muted-foreground">
                         {truncateLabel(item.category, 18)}
                       </span>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
+            </ScrollArea>
           )}
         </CardContent>
       </Card>
@@ -217,7 +229,7 @@ export function ExpensesByCategorySection({
   return (
     <Card className={cn("h-full p-6", className)}>
       <CardHeader className="p-0 pb-4">
-        <CardTitle>{title}</CardTitle>
+        <CardTitle className="text-lg">{title}</CardTitle>
         <CardDescription>
           {description ?? `Total no período: ${formatCurrency(prepared.total)}`}
         </CardDescription>

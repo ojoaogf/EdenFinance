@@ -1,6 +1,5 @@
-import { Settings, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { Sidebar } from "./Sidebar";
 
 interface AppLayoutProps {
@@ -44,7 +43,7 @@ export function AppLayout({
         className={
           isSidebarCollapsed
             ? "ml-20 transition-[margin] duration-300"
-            : "ml-64 transition-[margin] duration-300"
+            : "ml-44 transition-[margin] duration-300"
         }
       >
         <header className="sticky top-0 z-30 border-b border-border/60 bg-background/70 backdrop-blur-xl">
@@ -64,13 +63,6 @@ export function AppLayout({
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Link
-                to="/settings"
-                className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-card hover:text-primary"
-              >
-                <Settings className="h-5 w-5" />
-              </Link>
-              <div className="h-8 w-px bg-border/60" />
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">
                   Última atualização

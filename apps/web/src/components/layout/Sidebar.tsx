@@ -8,10 +8,10 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
-  FileBarChart,
   LayoutDashboard,
   LogOut,
   Plus,
+  Repeat,
   Settings,
   Target,
   TrendingUp,
@@ -32,9 +32,7 @@ const navItems = [
     ? [{ icon: TrendingUp, label: "Investimentos", href: "/investments" }]
     : []),
   ...(GOALS_ENABLED ? [{ icon: Target, label: "Metas", href: "/goals" }] : []),
-  { icon: FileBarChart, label: "Relatórios", href: "/reports" },
-  //{ icon: Tags, label: "Etiquetas", href: "/labels" },
-  { icon: Settings, label: "Configurações", href: "/settings" },
+  { icon: Repeat, label: "Parcelamentos", href: "/installment-plans" },
 ];
 
 interface SidebarProps {
@@ -87,13 +85,6 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
               <ChevronLeft className="h-4 w-4" />
             )}
           </Button>
-
-          <div
-            className={cn(
-              "flex items-center gap-3",
-              collapsed && "justify-center",
-            )}
-          ></div>
         </div>
 
         <nav
@@ -145,6 +136,19 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
           )}
         >
           <div className="mb-3 space-y-1">
+            <NavLink
+              to="/settings"
+              className={cn(
+                "flex items-center rounded-md py-2 text-xs font-medium transition-colors",
+                collapsed ? "justify-center px-2" : "gap-3 px-3",
+                "text-muted-foreground hover:bg-primary/5 hover:text-primary",
+              )}
+              activeClassName="bg-primary/10 text-primary"
+              title={collapsed ? "Configurações" : undefined}
+            >
+              <Settings className="h-4 w-4" />
+              {!collapsed && "Configurações"}
+            </NavLink>
             <button
               onClick={() => signOut()}
               className={cn(

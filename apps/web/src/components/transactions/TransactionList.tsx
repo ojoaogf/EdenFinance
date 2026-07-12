@@ -42,8 +42,10 @@ export function TransactionList({
     getCanonicalTransactionCategoryName(t.category, t.type);
 
   const getCategoryIcon = (t: Transaction) => {
-    const icon = getTransactionCategoryIcon(t.category, t.type);
-    return icon || categoryIcons[getCategoryName(t)] || "🏷️";
+    return (
+      categoryIcons[getCategoryName(t)] ||
+      getTransactionCategoryIcon(t.category, t.type)
+    );
   };
 
   return (
@@ -63,13 +65,13 @@ export function TransactionList({
 
         return (
           <div key={date} className="space-y-4">
-            <div className="flex items-center justify-between sticky top-0 bg-background/95 backdrop-blur z-10 py-2 border-b">
+            <div className="flex items-center justify-between sticky top-0 bg-card/95 backdrop-blur z-10 py-2 border-b">
               <h3 className="font-semibold text-lg capitalize">{dateLabel}</h3>
               <span
                 className={
                   dayTotal >= 0
-                    ? "text-emerald-600 font-medium"
-                    : "text-rose-600 font-medium"
+                    ? "text-lg font-bold text-success"
+                    : "text-lg font-bold text-destructive"
                 }
               >
                 {dayTotal >= 0 ? "+" : ""}

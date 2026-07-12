@@ -2,13 +2,12 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Lock } from "lucide-react";
 import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Button } from "./components/ui/button";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ColorThemeProvider } from "./contexts/ColorThemeContext";
 import Goals from "./pages/Goals";
-import Index from "./pages/Index";
+import InstallmentPlans from "./pages/InstallmentPlans";
 import Investments from "./pages/Investments";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -24,25 +23,6 @@ const GOALS_ENABLED = isFeatureEnabled(import.meta.env.VITE_FEATURE_GOALS);
 const INVESTMENTS_ENABLED = isFeatureEnabled(
   import.meta.env.VITE_FEATURE_INVESTMENTS,
 );
-
-const AwaitingApproval = () => {
-  const { signOut } = useAuth();
-  return (
-    <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-background p-4 text-center">
-      <div className="rounded-full bg-yellow-100 p-4 dark:bg-yellow-900/20">
-        <Lock className="h-8 w-8 text-yellow-600 dark:text-yellow-500" />
-      </div>
-      <h1 className="text-2xl font-bold">Aguardando Aprovação</h1>
-      <p className="max-w-md text-muted-foreground">
-        Sua conta foi criada com sucesso, mas precisa ser aprovada por um
-        administrador antes de você acessar o sistema.
-      </p>
-      <Button onClick={signOut} variant="outline">
-        Voltar ao Login
-      </Button>
-    </div>
-  );
-};
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -66,77 +46,79 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
+        <ColorThemeProvider>
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
 
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/transactions"
-                element={
-                  <ProtectedRoute>
-                    <Transactions />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/investments"
-                element={
-                  <ProtectedRoute>
-                    {INVESTMENTS_ENABLED ? (
-                      <Investments />
-                    ) : (
-                      <Navigate to="/" replace />
-                    )}
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/goals"
-                element={
-                  <ProtectedRoute>
-                    {GOALS_ENABLED ? <Goals /> : <Navigate to="/" replace />}
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/reports"
-                element={
-                  <ProtectedRoute>
-                    <Reports />
-                  </ProtectedRoute>
-                }
-              />
-              {/*<Route
-              path="/labels"
-              element={
-                <ProtectedRoute>
-                  <Labels />
-                </ProtectedRoute>
-              }
-            />*/}
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <Settings />
-                  </ProtectedRoute>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </AuthProvider>
+                <Route
+                  path="/"
+                  element={
+                    <ProtectedRoute>
+                      <Reports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/transactions"
+                  element={
+                    <ProtectedRoute>
+                      <Transactions />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/investments"
+                  element={
+                    <ProtectedRoute>
+                      {INVESTMENTS_ENABLED ? (
+                        <Investments />
+                      ) : (
+                        <Navigate to="/" replace />
+                      )}
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/goals"
+                  element={
+                    <ProtectedRoute>
+                      {GOALS_ENABLED ? <Goals /> : <Navigate to="/" replace />}
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reports"
+                  element={<Navigate to="/" replace />}
+                />
+                <Route
+                  path="/categories"
+                  element={<Navigate to="/settings" replace />}
+                />
+                <Route
+                  path="/installment-plans"
+                  element={
+                    <ProtectedRoute>
+                      <InstallmentPlans />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <ProtectedRoute>
+                      <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
+        </ColorThemeProvider>
       </ThemeProvider>
     </TooltipProvider>
   </QueryClientProvider>

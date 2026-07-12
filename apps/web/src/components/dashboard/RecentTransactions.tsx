@@ -1,26 +1,32 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  buildCategoryIconMap,
   getCanonicalTransactionCategoryName,
   getTransactionCategoryIcon,
 } from "@/constants/transaction-category-ui";
+import { useCategories } from "@/hooks/use-categories";
 import { cn } from "@/lib/utils";
 import { Transaction } from "@/types/finance";
 import { formatDateOnlyPtBR } from "@/utils/date";
 import { ArrowUpRight } from "lucide-react";
+import { useMemo } from "react";
 
 interface RecentTransactionsProps {
   transactions: Transaction[];
 }
 
 export function RecentTransactions({ transactions }: RecentTransactionsProps) {
+  const { data: categories = [] } = useCategories();
+  const categoryIcons = useMemo(
+    () => buildCategoryIconMap(categories),
+    [categories],
+  );
   const recentTransactions = transactions.slice(0, 6);
 
   return (
-    <Card className="h-full">
-      <CardHeader className="flex-row items-center justify-between space-y-0 p-4 pb-2">
-        <CardTitle className="terminal-title text-lg text-card-foreground">
-          Transações Recentes
-        </CardTitle>
+    <Card className="h-full p-6">
+      <CardHeader className="flex-row items-center justify-between space-y-0 p-0 pb-5">
+        <CardTitle className="text-lg">Transações Recentes</CardTitle>
         <a
           href="/transactions"
           className="group flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
@@ -30,7 +36,7 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
         </a>
       </CardHeader>
 
-      <CardContent className="space-y-2 p-4 pt-0">
+      <CardContent className="space-y-2 p-0">
         {recentTransactions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Nenhuma transação recente.
@@ -41,10 +47,9 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
               transaction.category,
               transaction.type,
             );
-            const categoryIcon = getTransactionCategoryIcon(
-              transaction.category,
-              transaction.type,
-            );
+            const categoryIcon =
+              categoryIcons[canonicalCategory] ||
+              getTransactionCategoryIcon(transaction.category, transaction.type);
 
             return (
               <div
@@ -77,8 +82,8 @@ export function RecentTransactions({ transactions }: RecentTransactionsProps) {
                     className={cn(
                       "text-sm font-bold tabular-nums",
                       transaction.type === "income"
-                        ? "text-emerald-600"
-                        : "text-rose-600",
+                        ? "text-success"
+                        : "text-destructive",
                     )}
                   >
                     {transaction.type === "income" ? "+" : "-"}{" "}

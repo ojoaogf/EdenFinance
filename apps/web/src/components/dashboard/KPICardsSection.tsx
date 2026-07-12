@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import type { MonthlyReport } from "@/types/finance";
-import { TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { PiggyBank, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useMemo } from "react";
 import { KPICard } from "./KPICard";
 
@@ -101,6 +101,14 @@ export function KPICardsSection({
         )
       : 0;
 
+  const investedChange =
+    currentReportForChange && previousReportForChange
+      ? calculateChange(
+          Number(currentReportForChange.invested),
+          Number(previousReportForChange.invested),
+        )
+      : 0;
+
   const totalIncome = filteredMonthlyReports.reduce(
     (sum, r) => sum + Number(r.income),
     0,
@@ -116,10 +124,19 @@ export function KPICardsSection({
       : 0;
   const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0;
 
+  const totalInvested = filteredMonthlyReports.reduce(
+    (sum, r) => sum + Number(r.invested),
+    0,
+  );
+  const avgMonthlyInvested =
+    filteredMonthlyReports.length > 0
+      ? totalInvested / filteredMonthlyReports.length
+      : 0;
+
   return (
     <div
       className={cn(
-        "grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3",
+        "grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4",
         className,
       )}
     >
@@ -158,6 +175,18 @@ export function KPICardsSection({
           maximumFractionDigits: 0,
         })} • ${savingsRate.toFixed(1)}%`}
         trendData={trendReports.map((r) => Number(r.balance))}
+      />
+      <KPICard
+        title="Investido"
+        value={`R$ ${totalInvested.toLocaleString("pt-BR")}`}
+        change={investedChange}
+        changeLabel="vs. mês anterior"
+        icon={PiggyBank}
+        variant="info"
+        meta={`Média mensal: R$ ${avgMonthlyInvested.toLocaleString("pt-BR", {
+          maximumFractionDigits: 0,
+        })}`}
+        trendData={trendReports.map((r) => Number(r.invested))}
       />
     </div>
   );

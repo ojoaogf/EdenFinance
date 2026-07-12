@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ArrowDownCircle, ArrowUpCircle, CalendarDays, Search } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Search } from "lucide-react";
 import type { ReactNode } from "react";
 
 interface TransactionFiltersProps {
@@ -33,10 +33,6 @@ export function TransactionFilters({
 
       <div className="flex items-center gap-2">
         {actions && <div className="shrink-0">{actions}</div>}
-        <button className="hidden items-center gap-1.5 rounded-lg border border-border/60 bg-card/70 px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:text-foreground md:flex">
-          <CalendarDays className="h-3.5 w-3.5 text-primary" />
-          Últimos 30 dias
-        </button>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
           <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-primary/30 shadow-neon-sm">
             <button
@@ -55,8 +51,8 @@ export function TransactionFilters({
               className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5",
                 filterType === "income"
-                  ? "bg-emerald-500/20 text-emerald-500 shadow-neon-sm border border-emerald-500/20"
-                  : "text-muted-foreground hover:text-emerald-500 hover:bg-emerald-500/10",
+                  ? "bg-success/20 text-success shadow-neon-sm border border-success/20"
+                  : "text-muted-foreground hover:text-success hover:bg-success/10",
               )}
             >
               <ArrowUpCircle className="h-3.5 w-3.5" />
@@ -67,8 +63,8 @@ export function TransactionFilters({
               className={cn(
                 "px-3 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5",
                 filterType === "expense"
-                  ? "bg-rose-500/20 text-rose-500 shadow-neon-sm border border-rose-500/20"
-                  : "text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10",
+                  ? "bg-destructive/20 text-destructive shadow-neon-sm border border-destructive/20"
+                  : "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
               )}
             >
               <ArrowDownCircle className="h-3.5 w-3.5" />

@@ -1,3 +1,5 @@
+import { normalizePaymentType } from "@/constants/payment-types";
+import { getCanonicalTransactionCategoryName } from "@/constants/transaction-category-ui";
 import { Transaction } from "@/types/finance";
 import { formatDateOnlyPtBR } from "@/utils/date";
 import ExcelJS from "exceljs";
@@ -6,6 +8,7 @@ import { saveAs } from "file-saver";
 export const generateExcelReport = async (
   transactions: Transaction[],
   periodLabel: string,
+  transferCategoryNames: string[] = [],
 ) => {
   const workbook = new ExcelJS.Workbook();
 
@@ -16,6 +19,7 @@ export const generateExcelReport = async (
     data: Transaction[],
     colors: { header: string; total: string; title: string },
     options: {
+      includePaymentType?: boolean;
       includeTags: boolean;
       tagsAlignment?: "left" | "right" | "center";
     } = {
@@ -24,20 +28,30 @@ export const generateExcelReport = async (
   ) => {
     const worksheet = workbook.addWorksheet(sheetName);
 
-    // Define columns
+    // Define columns (a ordem aqui define a ordem das colunas na planilha)
     const columns = [
       { header: "Data", key: "date", width: 15 },
       { header: "Descrição", key: "description", width: 30 },
       { header: "Categoria", key: "category", width: 20 },
-      { header: "Valor", key: "amount", width: 15 },
     ];
+
+    if (options.includePaymentType) {
+      columns.push({
+        header: "Tipo de Pagamento",
+        key: "paymentType",
+        width: 18,
+      });
+    }
+
+    columns.push({ header: "Valor", key: "amount", width: 15 });
+    const amountColIndex = columns.length; // posição (1-based) da coluna Valor
 
     if (options.includeTags) {
       columns.push({ header: "Tags", key: "tags", width: 25 });
     }
 
     worksheet.columns = columns;
-    const lastColLetter = options.includeTags ? "E" : "D";
+    const lastColLetter = String.fromCharCode(64 + columns.length);
 
     // --- Title ---
     worksheet.mergeCells(`A1:${lastColLetter}1`);
@@ -79,12 +93,27 @@ export const generateExcelReport = async (
     let totalAmount = 0;
     data.forEach((t) => {
       const row = worksheet.getRow(currentRow);
-      const values = [
+      const values: (string | number)[] = [
         formatDateOnlyPtBR(t.date),
         t.description,
         t.category || "Sem Categoria",
-        Number(t.amount),
       ];
+
+      if (options.includePaymentType) {
+        // Toda parcela de Parcelamento é, por definição, um pagamento no
+        // crédito — independe do que estiver salvo em paymentType (planos
+        // antigos podem ter sido cadastrados com outro valor).
+        const isInstallment = Boolean(
+          t.installmentNumber && t.installmentTotal,
+        );
+        values.push(
+          isInstallment
+            ? "Crédito"
+            : normalizePaymentType(t.paymentType) || t.paymentType || "—",
+        );
+      }
+
+      values.push(Number(t.amount));
 
       if (options.includeTags) {
         values.push(t.tags?.join(", ") || "");
@@ -93,12 +122,14 @@ export const generateExcelReport = async (
       row.values = values;
       totalAmount += Number(t.amount);
 
-      // Formatting Amount (Column 4)
-      row.getCell(4).numFmt = '"R$ "#,##0.00';
+      // Formatting Amount
+      row.getCell(amountColIndex).numFmt = '"R$ "#,##0.00';
 
-      // Formatting Tags (Column 5) if exists
+      // Formatting Tags (última coluna) if exists
       if (options.includeTags && options.tagsAlignment) {
-        row.getCell(5).alignment = { horizontal: options.tagsAlignment };
+        row.getCell(columns.length).alignment = {
+          horizontal: options.tagsAlignment,
+        };
       }
 
       // Apply borders to all used cells in the row
@@ -116,13 +147,12 @@ export const generateExcelReport = async (
 
     // --- Total ---
     const totalRow = worksheet.getRow(currentRow);
-    totalRow.values = [
-      `TOTAL ${sheetName.toUpperCase()}`,
+    const totalRowValues: (string | number)[] = new Array(columns.length).fill(
       "",
-      "",
-      totalAmount,
-      ...(options.includeTags ? [""] : []),
-    ];
+    );
+    totalRowValues[0] = `TOTAL ${sheetName.toUpperCase()}`;
+    totalRowValues[amountColIndex - 1] = totalAmount;
+    totalRow.values = totalRowValues;
     totalRow.font = { bold: true };
 
     // Apply borders to total row
@@ -135,17 +165,15 @@ export const generateExcelReport = async (
       pattern: "solid",
       fgColor: { argb: colors.total },
     };
-    totalRow.getCell(4).fill = {
+    totalRow.getCell(amountColIndex).fill = {
       type: "pattern",
       pattern: "solid",
       fgColor: { argb: colors.total },
     };
-    totalRow.getCell(4).numFmt = '"R$ "#,##0.00';
+    totalRow.getCell(amountColIndex).numFmt = '"R$ "#,##0.00';
 
     // --- Hide Unused Columns ---
-    // Entradas (4 cols A-D) -> Hide F (6) até XFD (16384)
-    // Despesas (5 cols A-E) -> Hide G (7) até XFD (16384)
-    const lastUsedCol = options.includeTags ? 5 : 4;
+    const lastUsedCol = columns.length;
     const startHideCol = lastUsedCol + 1;
 
     // XFD é a coluna 16384 no Excel
@@ -162,9 +190,26 @@ export const generateExcelReport = async (
     }
   };
 
-  // Separate transactions
+  // Separate transactions. Categorias marcadas como transferência (ex:
+  // Investimento) saem de "Despesas" — não são gasto real — e ganham sua
+  // própria aba, no mesmo padrão das outras.
+  //
+  // A comparação usa o nome CANÔNICO da categoria (não o valor bruto salvo
+  // na transação) porque lançamentos antigos podem ter variações do mesmo
+  // nome (ex: "investimentos", "Investimentos") que hoje apontam pra mesma
+  // categoria cadastrada — sem isso, esses lançamentos ficariam de fora da
+  // aba de Investimentos por não baterem a string exata.
+  const transferSet = new Set(transferCategoryNames);
+  const isTransferTransaction = (t: Transaction) =>
+    transferSet.has(getCanonicalTransactionCategoryName(t.category, t.type));
+
   const incomeTransactions = transactions.filter((t) => t.type === "income");
-  const expenseTransactions = transactions.filter((t) => t.type === "expense");
+  const expenseTransactions = transactions.filter(
+    (t) => t.type === "expense" && !isTransferTransaction(t),
+  );
+  const investedTransactions = transactions.filter(
+    (t) => t.type === "expense" && isTransferTransaction(t),
+  );
 
   // Create "Entradas" Sheet
   createSheet(
@@ -189,7 +234,20 @@ export const generateExcelReport = async (
       total: "FFFEE2E2", // Light Red
       title: "FFDC2626", // Red Text
     },
-    { includeTags: true, tagsAlignment: "right" },
+    { includePaymentType: true, includeTags: true, tagsAlignment: "right" },
+  );
+
+  // Create "Investimentos" Sheet
+  createSheet(
+    "Investimentos",
+    `Relatório de Investimentos - ${periodLabel}`,
+    investedTransactions,
+    {
+      header: "FF1E3A8A", // Dark Blue
+      total: "FFDBEAFE", // Light Blue
+      title: "FF2563EB", // Blue Text
+    },
+    { includePaymentType: true, includeTags: false },
   );
 
   // Generate file
