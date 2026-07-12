@@ -121,14 +121,6 @@ export default function Login() {
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-primary/30 bg-background/50"
-                />
-                Mantenha-me conectado
-              </label>
-
               <Button
                 type="submit"
                 className="h-12 w-full rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"

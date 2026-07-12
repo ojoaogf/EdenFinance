@@ -111,10 +111,10 @@ export function TransactionInsights({
   return (
     <div className="grid gap-4 md:grid-cols-3 mb-6">
       {/* Income Insight */}
-      <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-background border-emerald-500/20 shadow-sm hover:shadow-sm hover:border-emerald-500/20">
+      <Card className="bg-gradient-to-br from-success/10 via-success/5 to-background border-success/20 shadow-sm hover:shadow-sm hover:border-success/20">
         <CardContent className="p-4 flex items-start gap-4">
-          <div className="p-2 bg-emerald-500/20 rounded-full">
-            <TrendingUp className="h-5 w-5 text-emerald-600" />
+          <div className="p-2 bg-success/20 rounded-full">
+            <TrendingUp className="h-5 w-5 text-success" />
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-1">
@@ -123,7 +123,7 @@ export function TransactionInsights({
             {highestIncomeIncrease.amount > 0 ? (
               <p className="text-sm">
                 Você recebeu{" "}
-                <span className="font-bold text-emerald-600">
+                <span className="font-bold text-success">
                   {formatCurrency(highestIncomeIncrease.amount)}
                 </span>{" "}
                 a mais em{" "}
@@ -142,10 +142,10 @@ export function TransactionInsights({
       </Card>
 
       {/* Expense Insight */}
-      <Card className="bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-background border-rose-500/20 shadow-sm hover:shadow-sm hover:border-rose-500/20">
+      <Card className="bg-gradient-to-br from-destructive/10 via-destructive/5 to-background border-destructive/20 shadow-sm hover:shadow-sm hover:border-destructive/20">
         <CardContent className="p-4 flex items-start gap-4">
-          <div className="p-2 bg-rose-500/20 rounded-full">
-            <AlertTriangle className="h-5 w-5 text-rose-600" />
+          <div className="p-2 bg-destructive/20 rounded-full">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-1">
@@ -154,7 +154,7 @@ export function TransactionInsights({
             {highestExpenseIncrease.amount > 0 ? (
               <p className="text-sm">
                 Você gastou{" "}
-                <span className="font-bold text-rose-600">
+                <span className="font-bold text-destructive">
                   {formatCurrency(highestExpenseIncrease.amount)}
                 </span>{" "}
                 a mais em{" "}
@@ -173,10 +173,10 @@ export function TransactionInsights({
       </Card>
 
       {/* Savings Insight */}
-      <Card className="bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-background border-blue-500/20 shadow-sm hover:shadow-sm hover:border-blue-500/20">
+      <Card className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-primary/20 shadow-sm hover:shadow-sm hover:border-primary/20">
         <CardContent className="p-4 flex items-start gap-4">
-          <div className="p-2 bg-blue-500/20 rounded-full">
-            <PiggyBank className="h-5 w-5 text-blue-600" />
+          <div className="p-2 bg-primary/20 rounded-full">
+            <PiggyBank className="h-5 w-5 text-primary" />
           </div>
           <div>
             <p className="text-sm font-medium text-muted-foreground mb-1">
@@ -185,7 +185,7 @@ export function TransactionInsights({
             {savingsDiff > 0 ? (
               <p className="text-sm">
                 Você economizou{" "}
-                <span className="font-bold text-blue-600">
+                <span className="font-bold text-primary">
                   {formatCurrency(savingsDiff)}
                 </span>{" "}
                 a mais este mês comparado ao mês anterior.

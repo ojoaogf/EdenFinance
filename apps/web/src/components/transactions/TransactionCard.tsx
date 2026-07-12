@@ -25,10 +25,8 @@ import {
   ChevronDown,
   CreditCard,
   Edit2,
-  FileText,
-  Paperclip,
   QrCode,
-  Share2,
+  Repeat2,
   Trash2,
   Wallet,
 } from "lucide-react";
@@ -51,7 +49,6 @@ export function TransactionCard({
 }: TransactionCardProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Mock Payment Method inference
   const getPaymentMethod = () => {
     const normalizedPaymentType = normalizePaymentType(transaction.paymentType);
     if (normalizedPaymentType) {
@@ -85,8 +82,6 @@ export function TransactionCard({
   };
 
   const { label: paymentLabel, icon: PaymentIcon } = getPaymentMethod();
-  const hasAttachments = transaction.tags?.includes("anexo"); // Mock trigger
-  const isSplit = transaction.tags?.includes("split"); // Mock trigger
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="group">
@@ -102,8 +97,8 @@ export function TransactionCard({
             className={cn(
               "flex h-12 w-12 items-center justify-center rounded-2xl text-2xl shadow-sm ring-1 ring-inset",
               transaction.type === "income"
-                ? "bg-emerald-500/10 text-emerald-500 ring-emerald-500/20"
-                : "bg-rose-500/10 text-rose-500 ring-rose-500/20",
+                ? "bg-success/10 text-success ring-success/20"
+                : "bg-destructive/10 text-destructive ring-destructive/20",
             )}
           >
             {categoryIcon}
@@ -119,6 +114,15 @@ export function TransactionCard({
             <h3 className="font-semibold truncate">
               {transaction.description}
             </h3>
+            {transaction.installmentNumber && transaction.installmentTotal && (
+              <Badge
+                variant="outline"
+                className="text-xs px-1.5 h-5 gap-1 border-primary/30 text-primary"
+              >
+                <Repeat2 className="h-3 w-3" />
+                {transaction.installmentNumber}/{transaction.installmentTotal}
+              </Badge>
+            )}
             {transaction.tags?.map((tag) => (
               <Badge
                 key={tag}
@@ -136,14 +140,6 @@ export function TransactionCard({
             </span>
             <span>•</span>
             <span>{categoryName}</span>
-            {hasAttachments && (
-              <>
-                <span>•</span>
-                <span className="flex items-center gap-1 text-primary">
-                  <Paperclip className="h-3 w-3" />1 anexo
-                </span>
-              </>
-            )}
           </div>
         </div>
 
@@ -154,8 +150,8 @@ export function TransactionCard({
               className={cn(
                 "font-bold text-lg tabular-nums",
                 transaction.type === "income"
-                  ? "text-emerald-600"
-                  : "text-rose-600",
+                  ? "text-success"
+                  : "text-destructive",
               )}
             >
               {transaction.type === "income" ? "+" : "-"}
@@ -164,12 +160,6 @@ export function TransactionCard({
                 currency: "BRL",
               })}
             </p>
-            {isSplit && (
-              <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
-                <Share2 className="h-3 w-3" />
-                Split
-              </p>
-            )}
           </div>
 
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -257,17 +247,6 @@ export function TransactionCard({
               </p>
             </div>
           </div>
-
-          {hasAttachments && (
-            <div>
-              <p className="text-muted-foreground mb-2">Anexos</p>
-              <div className="flex gap-2">
-                <div className="h-16 w-16 rounded-lg bg-background border flex items-center justify-center cursor-pointer hover:border-primary">
-                  <FileText className="h-6 w-6 text-muted-foreground" />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </CollapsibleContent>
     </Collapsible>

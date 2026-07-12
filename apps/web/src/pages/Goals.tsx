@@ -2,6 +2,16 @@ import { GoalCard } from "@/components/goals/GoalCard";
 import { GoalHealthBar } from "@/components/goals/GoalHealthBar";
 import { GoalStats } from "@/components/goals/GoalStats";
 import { AppLayout } from "@/components/layout/AppLayout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { CreateActionButton } from "@/components/ui/create-action-button";
 import {
@@ -79,6 +89,7 @@ const Goals = () => {
     deadline: "",
     category: "",
   });
+  const [deleteTarget, setDeleteTarget] = useState<FinancialGoal | null>(null);
 
   // Reset form when dialog closes
   useEffect(() => {
@@ -108,14 +119,19 @@ const Goals = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir esta meta?")) {
-      toast.promise(deleteGoal.mutateAsync(id), {
-        loading: "Excluindo meta...",
-        success: "Meta excluída com sucesso",
-        error: "Erro ao excluir meta",
-      });
-    }
+  const handleDeleteClick = (goal: FinancialGoal) => {
+    setDeleteTarget(goal);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+
+    toast.promise(deleteGoal.mutateAsync(deleteTarget.id), {
+      loading: "Excluindo meta...",
+      success: "Meta excluída com sucesso",
+      error: "Erro ao excluir meta",
+    });
+    setDeleteTarget(null);
   };
 
   const handleSaveGoal = async () => {
@@ -363,7 +379,6 @@ const Goals = () => {
             <h3 className="text-lg font-medium mb-2">Nenhuma meta definida</h3>
             <p className="text-muted-foreground mb-6">
               Comece definindo seus objetivos financeiros para acompanhar seu
-              Comece definindo seus objetivos financeiros para acompanhar seu
               progresso.
             </p>
             <Button onClick={() => setIsDialogOpen(true)}>
@@ -378,12 +393,36 @@ const Goals = () => {
                 goal={goal}
                 categoryIcon={categoryIcons[goal.category || "other"] || "🎯"}
                 onEdit={handleEdit}
-                onDelete={handleDelete}
+                onDelete={() => handleDeleteClick(goal)}
               />
             ))}
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir meta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a meta "{deleteTarget?.name}"?
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-background hover:bg-destructive/90"
+              onClick={handleConfirmDelete}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

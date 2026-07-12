@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-type CardVariant = "default" | "info" | "success" | "warning" | "danger";
+export type CardVariant = "default" | "info" | "success" | "warning" | "danger";
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
@@ -10,10 +10,10 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 
 const cardVariants: Record<CardVariant, string> = {
   default: "border-border/60 bg-card",
-  info: "border-blue-500/30 bg-blue-500/5",
-  success: "border-emerald-500/30 bg-emerald-500/5",
-  warning: "border-amber-500/30 bg-amber-500/5",
-  danger: "border-rose-500/30 bg-rose-500/5",
+  info: "border-primary/30 bg-primary/5",
+  success: "border-success/30 bg-success/5",
+  warning: "border-warning/30 bg-warning/5",
+  danger: "border-destructive/30 bg-destructive/5",
 };
 
 const Card = React.forwardRef<

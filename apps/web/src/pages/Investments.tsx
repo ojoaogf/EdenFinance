@@ -1,5 +1,15 @@
 import { DonutChart } from "@/components/dashboard/DonutChart";
 import { AppLayout } from "@/components/layout/AppLayout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +36,7 @@ import {
   useInvestments,
   useInvestmentSummary,
 } from "@/hooks/use-investments";
+import type { Investment } from "@/types/finance";
 import { formatDateOnlyPtBR, toDateOnlyString } from "@/utils/date";
 import { formatCurrencyInput, parseCurrencyToNumber } from "@/utils/money";
 import { BarChart3, Plus, Trash2, TrendingUp, Wallet } from "lucide-react";
@@ -73,6 +84,7 @@ const Investments = () => {
     quantity: "",
     date: toDateOnlyString(new Date()),
   });
+  const [deleteTarget, setDeleteTarget] = useState<Investment | null>(null);
 
   // Totais baseados no Resumo
   const totalInvested = summary.reduce(
@@ -151,13 +163,18 @@ const Investments = () => {
     );
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este aporte?")) {
-      deleteInvestment.mutate(id, {
-        onSuccess: () => toast.success("Aporte removido"),
-        onError: () => toast.error("Erro ao remover aporte"),
-      });
-    }
+  const handleDeleteClick = (investment: Investment) => {
+    setDeleteTarget(investment);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+
+    deleteInvestment.mutate(deleteTarget.id, {
+      onSuccess: () => toast.success("Aporte removido"),
+      onError: () => toast.error("Erro ao remover aporte"),
+    });
+    setDeleteTarget(null);
   };
 
   return (
@@ -434,7 +451,7 @@ const Investments = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleDelete(investment.id)}
+                    onClick={() => handleDeleteClick(investment)}
                   >
                     <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
                   </Button>
@@ -444,6 +461,30 @@ const Investments = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir aporte?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o aporte de "{deleteTarget?.name}
+              "? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-background hover:bg-destructive/90"
+              onClick={handleConfirmDelete}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

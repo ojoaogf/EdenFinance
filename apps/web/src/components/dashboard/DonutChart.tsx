@@ -72,7 +72,7 @@ const renderActiveShape = (props: DonutActiveShapeProps) => {
         y={cy}
         dy={20}
         textAnchor="middle"
-        fill="#94a3b8"
+        fill="hsl(var(--muted-foreground))"
         className="text-sm"
       >
         {`${(percent * 100).toFixed(1)}%`}

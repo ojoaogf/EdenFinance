@@ -1,4 +1,4 @@
-import { Card } from "@/components/ui/card";
+import { Card, type CardVariant } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
@@ -10,32 +10,24 @@ interface KPICardProps {
   changeLabel?: string;
   meta?: string;
   icon: LucideIcon;
-  variant?: "default" | "success" | "warning" | "danger" | "info";
+  variant?: CardVariant;
   trendData?: number[]; // Array de valores para o sparkline
 }
 
-const variantStyles = {
-  default: "default",
-  success: "success",
-  warning: "warning",
-  danger: "danger",
-  info: "info",
-};
-
-const iconStyles = {
+const iconStyles: Record<CardVariant, string> = {
   default: "bg-muted text-muted-foreground",
-  success: "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400",
-  warning: "bg-amber-500/20 text-amber-600 dark:text-amber-400",
-  danger: "bg-rose-500/20 text-rose-600 dark:text-rose-400",
-  info: "bg-blue-500/20 text-blue-600 dark:text-blue-400",
+  success: "bg-success/20 text-success",
+  warning: "bg-warning/20 text-warning",
+  danger: "bg-destructive/20 text-destructive",
+  info: "bg-primary/20 text-primary",
 };
 
-const chartColors = {
+const chartColors: Record<CardVariant, string> = {
   default: "hsl(var(--muted-foreground))",
-  success: "hsl(var(--chart-3))",
-  warning: "hsl(var(--primary))",
-  danger: "hsl(var(--chart-2))",
-  info: "hsl(var(--chart-1))",
+  success: "hsl(var(--success))",
+  warning: "hsl(var(--warning))",
+  danger: "hsl(var(--destructive))",
+  info: "hsl(var(--primary))",
 };
 
 export function KPICard({
@@ -56,10 +48,7 @@ export function KPICard({
     : [];
 
   return (
-    <Card
-      variant={variantStyles[variant]}
-      className="group relative overflow-hidden p-4"
-    >
+    <Card variant={variant} className="group relative overflow-hidden p-4">
       <div className="relative z-10 flex justify-between">
         <div className="space-y-1">
           <p className="terminal-label">
@@ -75,8 +64,8 @@ export function KPICard({
                 className={cn(
                   "flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold",
                   isPositive
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400",
+                    ? "bg-success/10 text-success"
+                    : "bg-destructive/10 text-destructive",
                 )}
               >
                 {isPositive ? (

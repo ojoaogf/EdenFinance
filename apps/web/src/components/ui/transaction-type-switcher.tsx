@@ -26,26 +26,26 @@ export function TransactionTypeSwitcher({
               "relative flex items-center justify-center gap-2 rounded-lg py-3 text-sm font-medium transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
               isActive
                 ? isExpense
-                  ? "text-rose-500"
-                  : "text-emerald-500"
+                  ? "text-destructive"
+                  : "text-success"
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
             {isActive && (
               <motion.div
                 layoutId="activeType"
-                className="absolute inset-0 z-0 rounded-lg bg-background shadow-sm ring-1 ring-black/5 dark:ring-white/5"
+                className="absolute inset-0 z-0 rounded-lg bg-card shadow-sm ring-1 ring-black/5 dark:ring-white/5"
                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
               />
             )}
             <span className="relative z-10 flex items-center gap-2">
               {isExpense ? (
                 <ArrowDownCircle
-                  className={cn("h-4 w-4", isActive && "fill-rose-500/10")}
+                  className={cn("h-4 w-4", isActive && "fill-destructive/10")}
                 />
               ) : (
                 <ArrowUpCircle
-                  className={cn("h-4 w-4", isActive && "fill-emerald-500/10")}
+                  className={cn("h-4 w-4", isActive && "fill-success/10")}
                 />
               )}
               {isExpense ? "Despesa" : "Receita"}
